@@ -1,0 +1,15 @@
+{
+  "name": "수평선 비행 멀미 가드",
+  "short_name": "수평선",
+  "description": "비행기의 기울기와 흔들림을 감지해 화면에 수평선을 보여주는 멀미 예방 앱",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

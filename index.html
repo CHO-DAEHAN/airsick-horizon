@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>수평선 비행 멀미 가드</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+/* 기내 야간 조명에 맞춘 어두운 단일 테마. 화면 전체가 '창밖', 위아래 띠가 계기판. */
+:root{
+  --night:#0b1220; --sky:#1d3557; --sky-hi:#3f6f9f; --ground:#2a2118; --ground-lo:#14100c;
+  --ink:#e8eef6; --muted:#8ea0b8; --line:#f2c14e; --ok:#5fd39a; --warn:#f2c14e; --bad:#ff7a6b;
+  --panel:rgba(11,18,32,.78); --chip:rgba(255,255,255,.08);
+  --font:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--ink);font-family:var(--font);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+[hidden]{display:none!important}
+canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+/* 상단 계기 */
+.hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:10px;background:linear-gradient(var(--panel),transparent);pointer-events:none}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--chip);font-weight:700;font-size:17px}
+.pill i{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px currentColor}
+.pill.small{font-size:13px;font-weight:600;padding:6px 11px}
+.readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:420px}
+.ro{display:flex;flex-direction:column;gap:2px}
+.ro b{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums;font-weight:600}
+.ro span{font-size:11px;letter-spacing:.06em;color:var(--muted)}
+
+.banner{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 132px);transform:translateX(-50%);
+  max-width:min(92vw,420px);padding:12px 16px;border-radius:14px;background:var(--line);color:#1b1404;font-weight:700;
+  text-align:center;font-size:15px;line-height:1.4;transition:opacity .4s;opacity:0;pointer-events:none}
+.banner.on{opacity:1}
+
+.breath{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateX(-50%);
+  font-size:14px;color:var(--muted);letter-spacing:.04em;pointer-events:none}
+
+/* 하단 조작 */
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(16px,env(safe-area-inset-left,0px));
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;background:linear-gradient(transparent,var(--panel))}
+button{font:inherit;color:var(--ink);background:var(--chip);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:11px 14px;font-size:14px;font-weight:600;cursor:pointer}
+button:active{transform:scale(.97)}
+button:focus-visible,select:focus-visible{outline:2px solid var(--line);outline-offset:2px}
+button.primary{background:var(--line);color:#1b1404;border-color:transparent}
+button[aria-pressed="true"]{background:rgba(242,193,78,.22);border-color:var(--line)}
+
+/* 시트/시작 화면 */
+.sheet{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,9,16,.6);z-index:5}
+.sheet .card{width:100%;max-width:520px;max-height:88%;overflow:auto;background:#121b2d;border-radius:20px 20px 0 0;
+  padding:22px max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 22px) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.sheet h2{margin:0;font-size:20px}
+.sheet p,.sheet li{color:#c7d2e1;line-height:1.6;font-size:15px;margin:0}
+.sheet ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+select{font:inherit;color:var(--ink);background:#0b1220;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 10px}
+label.chk{display:flex;align-items:center;gap:10px;font-size:15px}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
+
+.intro{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;justify-content:center;gap:20px;
+  padding:calc(env(safe-area-inset-top,0px) + 24px) max(24px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(24px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,#1d3557 0%,#2c5078 49.6%,var(--line) 49.8%,var(--line) 50.2%,#2a2118 50.4%,#14100c 100%)}
+.intro .box{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:14px;background:rgba(11,18,32,.82);padding:22px;border-radius:20px}
+.intro h1{margin:0;font-size:28px;letter-spacing:-.01em;text-wrap:balance}
+.intro p{margin:0;color:#c7d2e1;line-height:1.6}
+.intro .btns{display:flex;gap:10px;flex-wrap:wrap}
+.intro .btns button{flex:1 1 140px;padding:14px}
+.err{color:var(--bad);font-size:14px;line-height:1.5}
+@media (prefers-reduced-motion:reduce){.banner{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="실시간 인공 수평선"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="status">
+    <span class="pill" id="state"><i id="dot"></i><span id="stateText">수평 비행</span></span>
+    <span class="pill small" id="turb">난기류 없음</span>
+    <span class="pill small" id="demoTag" hidden>데모</span>
+  </div>
+  <div class="readouts">
+    <div class="ro"><b id="rRoll">0°</b><span>좌우 기울기</span></div>
+    <div class="ro"><b id="rPitch">0°</b><span>앞뒤 기울기</span></div>
+    <div class="ro"><b id="rTurn">0.0°/s</b><span>선회율</span></div>
+  </div>
+</div>
+
+<div class="banner" id="banner" role="status" aria-live="polite"></div>
+<div class="breath" id="breathText" hidden></div>
+
+<div class="bar" id="bar" hidden>
+  <button id="btnZero">영점 맞추기</button>
+  <button id="btnBreath" aria-pressed="false">호흡 가이드</button>
+  <button id="btnTips">멀미 팁</button>
+  <button id="btnSet">설정</button>
+  <button id="btnStop">정지</button>
+</div>
+
+<section class="intro" id="intro">
+  <div class="box">
+    <h1>수평선</h1>
+    <p>비행기가 기울거나 흔들리는 걸 폰 센서로 감지해서, 화면에 진짜 수평선과 움직임 점을 보여줘요. 귀가 느끼는 움직임과 눈이 보는 화면을 맞춰서 멀미를 줄이는 방식이에요.</p>
+    <p>폰을 세워 들거나 트레이 테이블에 두고, 기울어지기 전에 영점을 맞춰 주세요.</p>
+    <div class="btns">
+      <button class="primary" id="btnStart">센서 켜고 시작</button>
+      <button id="btnDemo">데모 보기</button>
+    </div>
+    <div class="err" id="err" hidden></div>
+  </div>
+</section>
+
+<div class="sheet" id="tips" hidden>
+  <div class="card">
+    <h2>비행 멀미 줄이는 법</h2>
+    <ul>
+      <li>날개 위 좌석이 가장 덜 흔들려요. 창가라면 창밖 수평선을 보세요.</li>
+      <li>머리를 헤드레스트에 붙여 고정하면 귀가 받는 자극이 줄어요.</li>
+      <li>책이나 폰 글자를 오래 보지 마세요. 이 앱 화면도 수평선만 가볍게 보는 용도예요.</li>
+      <li>머리 위 환기구를 열어 얼굴 쪽으로 바람을 두세요.</li>
+      <li>탑승 전과 비행 중엔 기름진 음식과 술을 피하고 가볍게 드세요.</li>
+      <li>멀미약은 보통 탑승 30분~1시간 전에 먹어요. 종류와 용량은 약사와 상담하세요.</li>
+      <li>속이 안 좋으면 눈을 감고 천천히 호흡하세요. 호흡 가이드: 4초 들이쉬고 6초 내쉬기.</li>
+    </ul>
+    <button id="tipsClose" class="primary">닫기</button>
+  </div>
+</div>
+
+<div class="sheet" id="settings" hidden>
+  <div class="card">
+    <h2>설정</h2>
+    <div class="row">
+      <span>비행 단계</span>
+      <select id="phase">
+        <option value="75">이륙·착륙</option>
+        <option value="150">상승·하강</option>
+        <option value="230">순항</option>
+      </select>
+    </div>
+    <p style="font-size:13px;color:var(--muted)">선회 중 기울기를 추정할 때 비행 속도를 써요. 지금 단계를 고르면 더 정확해져요.</p>
+    <label class="chk"><input type="checkbox" id="optVibe" checked> 기울기 시작할 때 진동 알림 (안드로이드)</label>
+    <label class="chk"><input type="checkbox" id="optBanner" checked> 기울기 시작할 때 화면 알림</label>
+    <button id="setClose" class="primary">닫기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+
+// ---------- 설정 저장 ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('horizon.'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('horizon.'+k, JSON.stringify(v)); }catch(e){} }
+};
+const opt = { speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
+$('phase').value = String(opt.speed);
+$('optVibe').checked = opt.vibe;
+$('optBanner').checked = opt.banner;
+
+// ---------- 벡터 ----------
+const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const norm = a => { const l = Math.hypot(a[0],a[1],a[2]) || 1; return [a[0]/l,a[1]/l,a[2]/l]; };
+const sub = (a,b) => [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const scale = (a,s) => [a[0]*s,a[1]*s,a[2]*s];
+
+// ---------- 상태 ----------
+const S = {
+  roll:0, pitch:0,          // 기체 기울기 추정 (deg). roll + = 오른쪽, pitch + = 기수 올림
+  rollRate:0, pitchRate:0,  // deg/s (부드럽게)
+  yaw:0,                    // 선회율 deg/s, + = 왼쪽
+  heading:0,                // 누적 방향 변화 (점 이동용)
+  vAcc:0, turb:0,           // 수직 가속 m/s², 난기류 세기(RMS)
+  bob:0,
+  up:[0,1,0],               // 기기 좌표계에서 '위' 방향
+  accSign:1, signVotes:0,
+  zeroRoll:0, zeroPitch:0
+};
+let running = false, demo = false, lastT = 0, gotMotion = false, gotOrient = false;
+
+// ---------- 센서 ----------
+// 기울기(deviceorientation)로 기기 좌표계의 '위' 방향을 구함: [-cosβ·sinγ, sinβ, cosβ·cosγ]
+function onOrient(e){
+  if (e.beta == null || e.gamma == null) return;
+  gotOrient = true;
+  const b = e.beta*D2R, g = e.gamma*D2R;
+  const u = [-Math.cos(b)*Math.sin(g), Math.sin(b), Math.cos(b)*Math.cos(g)];
+  // 천천히 따라가게 (기체가 아닌 손 흔들림 영향 감소)
+  S.up = norm([S.up[0]*0.9+u[0]*0.1, S.up[1]*0.9+u[1]*0.1, S.up[2]*0.9+u[2]*0.1]);
+}
+
+function onMotion(e){
+  if (!running || demo) return;
+  const now = performance.now();
+  const dt = Math.min(0.1, Math.max(0.001, (now - (lastT||now))/1000 || 0.016));
+  lastT = now;
+  const rr = e.rotationRate;
+  if (!rr || rr.alpha == null) return;
+  gotMotion = true;
+
+  const up = S.up;
+  // 기체 앞쪽: 폰을 세워 들면 폰 뒷면 방향, 눕혀 두면 폰 윗변 방향
+  let fwd = Math.abs(up[2]) < 0.75 ? [0,0,-1] : [0,1,0];
+  fwd = norm(sub(fwd, scale(up, dot(fwd, up))));
+  const right = cross(fwd, up);
+
+  const w = [rr.beta||0, rr.gamma||0, rr.alpha||0]; // x,y,z 축 회전 (deg/s)
+  const rollRate  = dot(w, fwd);
+  const pitchRate = dot(w, right);
+  const yawRate   = dot(w, up);
+
+  integrate(dt, rollRate, pitchRate, yawRate, verticalAccel(e, up));
+}
+
+// 위아래 가속 (난기류). iOS/안드로이드 부호 차이는 중력 방향과 비교해 자동 보정
+function verticalAccel(e, up){
+  const g = e.accelerationIncludingGravity;
+  if (g && g.x != null && S.signVotes < 60){
+    const d = dot([g.x,g.y,g.z], up);
+    if (Math.abs(d) > 5){ S.accSign = d > 0 ? 1 : -1; S.signVotes++; }
+  }
+  const a = e.acceleration;
+  if (!a || a.x == null) return 0;
+  return dot([a.x,a.y,a.z], up) * S.accSign;
+}
+
+// 자이로(빠른 변화) + 선회율로 계산한 기울기(꾸준한 값)를 섞는 상보 필터
+function integrate(dt, rollRate, pitchRate, yawRate, vAcc){
+  const k = 1 - Math.exp(-dt/0.25);
+  S.rollRate  += (rollRate  - S.rollRate)*k;
+  S.pitchRate += (pitchRate - S.pitchRate)*k;
+  S.yaw       += (yawRate   - S.yaw)*k;
+
+  const V = opt.speed;
+  const rollFromTurn = -Math.atan(V * S.yaw * D2R / 9.81) * R2D;
+  const a = Math.exp(-dt/8);
+  S.roll = a*(S.roll + rollRate*dt) + (1-a)*rollFromTurn;
+  S.pitch = (S.pitch + pitchRate*dt) * Math.exp(-dt/25);
+  S.roll = Math.max(-45, Math.min(45, S.roll));
+  S.pitch = Math.max(-25, Math.min(25, S.pitch));
+
+  S.heading += S.yaw*dt;
+  S.vAcc += (vAcc - S.vAcc)*(1 - Math.exp(-dt/0.08));
+  S.turb = Math.sqrt(S.turb*S.turb*Math.exp(-dt/2) + vAcc*vAcc*(1-Math.exp(-dt/2)));
+  S.bob += (S.vAcc*16 - S.bob)*(1 - Math.exp(-dt/0.15));
+
+  checkAlert();
+}
+
+// ---------- 데모 (센서 없이 비행 흉내) ----------
+let demoT = 0;
+function demoStep(dt){
+  demoT += dt;
+  const t = demoT % 60;
+  let yaw = 0, pr = 0, v = 0;
+  if (t > 6 && t < 22) yaw = -1.2 * Math.sin(Math.PI*(t-6)/16);        // 오른쪽 선회
+  if (t > 30 && t < 42) yaw = 0.9 * Math.sin(Math.PI*(t-30)/12);       // 왼쪽 선회
+  if (t > 44 && t < 52) pr = 1.4 * Math.sin(2*Math.PI*(t-44)/8);       // 상승 후 복귀
+  if (t > 24 && t < 29) v = 2.2*Math.sin(t*9) + 1.3*Math.sin(t*23.7);  // 난기류
+  const targetRoll = -Math.atan(opt.speed*yaw*D2R/9.81)*R2D;
+  const rollRate = (targetRoll - S.roll) * 0.9;
+  integrate(dt, rollRate, pr, yaw, v);
+}
+
+// ---------- 알림 ----------
+let alertCool = 0, rateHold = 0, bannerTimer = 0;
+function checkAlert(){
+  const now = performance.now();
+  rateHold = Math.abs(S.rollRate) > 1.5 ? rateHold + 1 : 0;
+  if (rateHold > 20 && now > alertCool){
+    alertCool = now + 12000;
+    const roll = S.roll - S.zeroRoll;
+    const leveling = Math.abs(roll) > 3 && Math.sign(roll) !== Math.sign(S.rollRate);
+    const msg = leveling ? '수평으로 돌아오는 중이에요. 화면의 수평선을 보세요.'
+      : (S.rollRate > 0 ? '오른쪽' : '왼쪽') + '으로 기울어지는 중이에요. 화면의 수평선을 보세요.';
+    if (opt.banner) showBanner(msg);
+    if (opt.vibe && navigator.vibrate) try{ navigator.vibrate([60,80,60]); }catch(e){}
+  }
+}
+function showBanner(text){
+  const b = $('banner'); b.textContent = text; b.classList.add('on');
+  clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('on'), 3500);
+}
+
+// ---------- 그리기 ----------
+const cv = $('view'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W*DPR; cv.height = H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize); resize();
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function draw(t){
+  const roll = S.roll - S.zeroRoll, pitch = S.pitch - S.zeroPitch;
+  const cx = W/2, cy = H/2, ppd = Math.min(W,H)/40;
+  const R = Math.hypot(W,H);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-roll*D2R);
+  ctx.translate(0, pitch*ppd + S.bob);
+
+  // 하늘 / 땅
+  let g = ctx.createLinearGradient(0,-R,0,0);
+  g.addColorStop(0,'#0e1c33'); g.addColorStop(1,'#3f6f9f');
+  ctx.fillStyle = g; ctx.fillRect(-R,-R*2,R*2,R*2);
+  g = ctx.createLinearGradient(0,0,0,R);
+  g.addColorStop(0,'#3a2d1f'); g.addColorStop(1,'#0f0c09');
+  ctx.fillStyle = g; ctx.fillRect(-R,0,R*2,R*2);
+
+  // 움직임 점: 세상에 붙어 있어서 선회하면 옆으로 흐르고, 흔들리면 같이 출렁임
+  const sp = 46, off = ((S.heading*ppd*0.8) % sp + sp) % sp;
+  for (let row = -6; row <= 6; row++){
+    if (row === 0) continue;
+    const y = row*sp*0.9;
+    for (let x = -R + off; x < R; x += sp){
+      const edge = Math.min(1, Math.abs(x)/(W*0.42));
+      const a = 0.12 + 0.55*edge*edge;
+      ctx.fillStyle = row < 0 ? `rgba(220,235,255,${a})` : `rgba(255,225,170,${a*0.8})`;
+      ctx.beginPath(); ctx.arc(x, y, 3.2 + 2*edge, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // 수평선
+  ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-R,0); ctx.lineTo(R,0); ctx.stroke();
+
+  // 피치 눈금
+  ctx.strokeStyle = 'rgba(232,238,246,.55)'; ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(232,238,246,.6)'; ctx.font = '12px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (let p = -20; p <= 20; p += 5){
+    if (!p) continue;
+    const y = -p*ppd, w = p % 10 ? 22 : 44;
+    ctx.beginPath(); ctx.moveTo(-w,y); ctx.lineTo(w,y); ctx.stroke();
+    if (!(p % 10)) ctx.fillText(Math.abs(p)+'°', w+6, y);
+  }
+  ctx.restore();
+
+  // 기울기 눈금 (위쪽 호)
+  ctx.save();
+  ctx.translate(cx, cy);
+  const arcR = Math.min(W,H)*0.36;
+  ctx.strokeStyle = 'rgba(232,238,246,.5)'; ctx.lineWidth = 2;
+  for (const d of [-45,-30,-20,-10,0,10,20,30,45]){
+    const a = (d-90)*D2R, l = d % 30 ? 8 : 14;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a)*arcR, Math.sin(a)*arcR);
+    ctx.lineTo(Math.cos(a)*(arcR-l), Math.sin(a)*(arcR-l)); ctx.stroke();
+  }
+  const pa = (-roll-90)*D2R;
+  ctx.fillStyle = '#f2c14e';
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(pa)*(arcR-16), Math.sin(pa)*(arcR-16));
+  ctx.lineTo(Math.cos(pa-0.04)*(arcR-30), Math.sin(pa-0.04)*(arcR-30));
+  ctx.lineTo(Math.cos(pa+0.04)*(arcR-30), Math.sin(pa+0.04)*(arcR-30));
+  ctx.fill();
+
+  // 호흡 가이드: 4초 들이쉬기, 6초 내쉬기
+  if (opt.breath){
+    const c = (t/1000) % 10;
+    const k = c < 4 ? c/4 : 1 - (c-4)/6;
+    const e = reduceMotion ? 0.5 : 0.5 - 0.5*Math.cos(Math.PI*k);
+    ctx.strokeStyle = 'rgba(232,238,246,.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0,0, 40 + e*60, 0, Math.PI*2); ctx.stroke();
+    $('breathText').textContent = c < 4 ? '들이쉬기' : '내쉬기';
+  }
+
+  // 기체 기준 표시 (고정)
+  ctx.strokeStyle = '#0b1220'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  const wing = () => { ctx.beginPath(); ctx.moveTo(-90,0); ctx.lineTo(-36,0); ctx.lineTo(-20,14);
+    ctx.moveTo(90,0); ctx.lineTo(36,0); ctx.lineTo(20,14); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,4,0,Math.PI*2); ctx.stroke(); };
+  wing(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; wing();
+  ctx.restore();
+}
+
+// ---------- 화면 글자 ----------
+let lastHud = 0;
+function updateHud(t){
+  if (t - lastHud < 200) return; lastHud = t;
+  const roll = S.roll - S.zeroRoll, pitch = S.pitch - S.zeroPitch;
+  $('rRoll').textContent = (roll >= 0.5 ? '오 ' : roll <= -0.5 ? '왼 ' : '') + Math.abs(roll).toFixed(0) + '°';
+  $('rPitch').textContent = (pitch >= 0.5 ? '↑ ' : pitch <= -0.5 ? '↓ ' : '') + Math.abs(pitch).toFixed(0) + '°';
+  $('rTurn').textContent = Math.abs(S.yaw).toFixed(1) + '°/s';
+
+  let text = '수평 비행', color = 'var(--ok)';
+  if (roll > 5 || S.yaw < -0.6){ text = '오른쪽으로 선회 중'; color = 'var(--warn)'; }
+  else if (roll < -5 || S.yaw > 0.6){ text = '왼쪽으로 선회 중'; color = 'var(--warn)'; }
+  else if (pitch > 4){ text = '상승 중'; color = 'var(--warn)'; }
+  else if (pitch < -4){ text = '하강 중'; color = 'var(--warn)'; }
+  $('stateText').textContent = text; $('dot').style.background = color; $('dot').style.color = color;
+
+  const tb = S.turb;
+  const tt = tb < 0.4 ? ['난기류 없음','var(--muted)'] : tb < 1.2 ? ['난기류 약함','var(--warn)'] : tb < 2.5 ? ['난기류 보통','var(--warn)'] : ['난기류 강함','var(--bad)'];
+  $('turb').textContent = tt[0]; $('turb').style.color = tt[1];
+}
+
+// ---------- 루프 ----------
+let prevFrame = 0;
+function frame(t){
+  if (!running) return;
+  const dt = Math.min(0.1, (t - (prevFrame||t))/1000); prevFrame = t;
+  if (demo) demoStep(dt || 0.016);
+  draw(t); updateHud(t);
+  requestAnimationFrame(frame);
+}
+
+// ---------- 화면 켜짐 유지 ----------
+let wakeLock = null;
+async function keepAwake(){
+  try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if (running && document.visibilityState === 'visible') keepAwake(); });
+
+// ---------- 시작/정지 ----------
+function showRunUI(on){
+  $('intro').hidden = on; $('hud').hidden = !on; $('bar').hidden = !on;
+  $('breathText').hidden = !(on && opt.breath);
+  $('demoTag').hidden = !demo;
+}
+function begin(){
+  running = true; lastT = 0; prevFrame = 0;
+  Object.assign(S, {roll:0,pitch:0,rollRate:0,pitchRate:0,yaw:0,heading:0,vAcc:0,turb:0,bob:0,zeroRoll:0,zeroPitch:0});
+  showRunUI(true); keepAwake();
+  requestAnimationFrame(frame);
+}
+function showErr(msg){ const e = $('err'); e.textContent = msg; e.hidden = false; }
+
+$('btnStart').addEventListener('click', async () => {
+  $('err').hidden = true;
+  if (!window.isSecureContext){
+    showErr('센서는 https:// 주소에서만 켜져요. 배포한 주소로 열어 주세요. 지금은 데모만 볼 수 있어요.');
+    return;
+  }
+  try{
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function'){
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted'){ showErr('동작 센서 권한이 거부됐어요. 설정 > Safari > 동작 및 방향 접근을 켠 뒤 다시 시도하세요.'); return; }
+    }
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      await DeviceOrientationEvent.requestPermission();
+    }
+  }catch(e){ showErr('센서 권한을 요청하지 못했어요: ' + e.message); return; }
+
+  addEventListener('deviceorientation', onOrient);
+  addEventListener('devicemotion', onMotion);
+  demo = false; begin();
+  setTimeout(() => {
+    if (running && !demo && !(gotMotion && gotOrient)){
+      running = false; showRunUI(false);
+      showErr('이 기기에서 자이로 센서 값을 받지 못했어요. 폰에서 열었는지 확인하세요. 데모로 화면을 볼 수 있어요.');
+    }
+  }, 2500);
+});
+$('btnDemo').addEventListener('click', () => { demo = true; demoT = 0; begin(); });
+$('btnStop').addEventListener('click', () => {
+  running = false; showRunUI(false);
+  removeEventListener('devicemotion', onMotion); removeEventListener('deviceorientation', onOrient);
+  if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
+});
+$('btnZero').addEventListener('click', () => {
+  S.zeroRoll = S.roll; S.zeroPitch = S.pitch; S.heading = 0;
+  showBanner('지금 자세를 수평으로 맞췄어요.');
+});
+const breathBtn = $('btnBreath');
+breathBtn.setAttribute('aria-pressed', String(opt.breath));
+breathBtn.addEventListener('click', () => {
+  opt.breath = !opt.breath; store.set('breath', opt.breath);
+  breathBtn.setAttribute('aria-pressed', String(opt.breath));
+  $('breathText').hidden = !opt.breath;
+});
+$('btnTips').addEventListener('click', () => $('tips').hidden = false);
+$('tipsClose').addEventListener('click', () => $('tips').hidden = true);
+$('btnSet').addEventListener('click', () => $('settings').hidden = false);
+$('setClose').addEventListener('click', () => $('settings').hidden = true);
+for (const id of ['tips','settings']) $(id).addEventListener('click', e => { if (e.target.id === id) $(id).hidden = true; });
+$('phase').addEventListener('change', e => { opt.speed = +e.target.value; store.set('speed', opt.speed); });
+$('optVibe').addEventListener('change', e => { opt.vibe = e.target.checked; store.set('vibe', opt.vibe); });
+$('optBanner').addEventListener('change', e => { opt.banner = e.target.checked; store.set('banner', opt.banner); });
+
+// 정지 화면에도 수평선 한 장 그려두기
+draw(0);
+
+// 오프라인(비행기 모드) 지원
+if ('serviceWorker' in navigator && window.isSecureContext){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+})();
+</script>
+</body>
+</html>
