@@ -33,10 +33,11 @@ canvas#view{position:fixed;inset:0;width:100%;height:100%;display:block}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--chip);font-weight:700;font-size:17px}
 .pill i{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px currentColor}
 .pill.small{font-size:13px;font-weight:600;padding:6px 11px}
-.readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:420px}
-.ro{display:flex;flex-direction:column;gap:2px}
-.ro b{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums;font-weight:600}
-.ro span{font-size:11px;letter-spacing:.06em;color:var(--muted)}
+.tilt{display:flex;align-items:center;gap:14px;text-shadow:0 1px 8px rgba(0,0,0,.55)}
+.tilt b{font-family:var(--mono);font-size:52px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ok);min-width:2.6ch}
+.tilt div{display:flex;flex-direction:column;gap:3px}
+.tilt span{font-size:20px;font-weight:800}
+.tilt small{font-size:14px;color:#d5deea}
 
 .banner{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 132px);transform:translateX(-50%);
   max-width:min(92vw,420px);padding:12px 16px;border-radius:14px;background:var(--line);color:#1b1404;font-weight:700;
@@ -83,15 +84,14 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <canvas id="view" aria-label="실시간 인공 수평선"></canvas>
 
 <div class="hud" id="hud" hidden>
-  <div class="status">
-    <span class="pill" id="state"><i id="dot"></i><span id="stateText">수평 비행</span></span>
-    <span class="pill small" id="turb">난기류 없음</span>
-    <span class="pill small" id="demoTag" hidden>데모</span>
+  <div class="tilt">
+    <b id="tiltNum">0°</b>
+    <div><span id="tiltDir">수평</span><small id="tiltLvl">안정적으로 날고 있어요</small></div>
   </div>
-  <div class="readouts">
-    <div class="ro"><b id="rRoll">0°</b><span>좌우 기울기</span></div>
-    <div class="ro"><b id="rPitch">0°</b><span>앞뒤 기울기</span></div>
-    <div class="ro"><b id="rTurn">0.0°/s</b><span>선회율</span></div>
+  <div class="status">
+    <span class="pill small" id="turb">난기류 없음</span>
+    <span class="pill small" id="cityTag"></span>
+    <span class="pill small" id="demoTag" hidden>데모</span>
   </div>
 </div>
 
@@ -140,6 +140,27 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
   <div class="card">
     <h2>설정</h2>
     <div class="row">
+      <span>배경 도시</span>
+      <select id="city">
+        <option value="ICN">서울 · 인천</option>
+        <option value="JFK">뉴욕 · JFK</option>
+        <option value="CDG">파리 · 샤를드골</option>
+        <option value="LHR">런던 · 히스로</option>
+        <option value="HND">도쿄 · 하네다</option>
+        <option value="DXB">두바이</option>
+        <option value="SIN">싱가포르 · 창이</option>
+      </select>
+    </div>
+    <div class="row">
+      <span>시간대</span>
+      <select id="tod">
+        <option value="auto">자동 (폰 시계)</option>
+        <option value="day">낮</option>
+        <option value="dusk">노을</option>
+        <option value="night">밤</option>
+      </select>
+    </div>
+    <div class="row">
       <span>비행 단계</span>
       <select id="phase">
         <option value="75">이륙·착륙</option>
@@ -147,7 +168,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
         <option value="230">순항</option>
       </select>
     </div>
-    <p style="font-size:13px;color:var(--muted)">선회 중 기울기를 추정할 때 비행 속도를 써요. 지금 단계를 고르면 더 정확해져요.</p>
+    <p style="font-size:13px;color:var(--muted)">지금 비행 단계를 고르면 기울기가 더 정확해지고, 순항 중엔 도시가 멀리 작게 보여요.</p>
     <label class="chk"><input type="checkbox" id="optVibe" checked> 기울기 시작할 때 진동 알림 (안드로이드)</label>
     <label class="chk"><input type="checkbox" id="optBanner" checked> 기울기 시작할 때 화면 알림</label>
     <button id="setClose" class="primary">닫기</button>
@@ -165,8 +186,10 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('horizon.'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('horizon.'+k, JSON.stringify(v)); }catch(e){} }
 };
-const opt = { view: store.get('view', 'chase'), speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
+const opt = { view: store.get('view', 'chase'), city: store.get('city', 'ICN'), tod: store.get('tod', 'auto'), speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
 $('phase').value = String(opt.speed);
+$('city').value = opt.city;
+$('tod').value = opt.tod;
 $('optVibe').checked = opt.vibe;
 $('optBanner').checked = opt.banner;
 
@@ -313,46 +336,227 @@ function draw(t){
 }
 
 // ---------- 3인칭 시점: 뒤에서 따라가며 비행기를 바라봄 ----------
-// 좌표: x 오른쪽, y 위, z 앞(기수 방향). 비행기 원점 기준.
+// 좌표: x 오른쪽, y 위, z 앞(기수 방향). 비행기 원점 기준. 색은 시간대 팔레트 키.
 const PLANE = (() => {
-  const P = [], body = '#e9eef5', wingC = '#b8c3d1', eng = '#7f8c9e', acc = '#f2c14e';
+  const P = [];
   const zs = [-15,-11,-6,0,6,11,15,17.5], rs = [0.6,1.3,1.75,1.8,1.8,1.6,1.1,0.4];
-  for (let i = 0; i < zs.length-1; i++) P.push({k:'seg', a:[0,0,zs[i]], b:[0,0,zs[i+1]], r:(rs[i]+rs[i+1])/2, c:body});
+  for (let i = 0; i < zs.length-1; i++) P.push({k:'seg', a:[0,0,zs[i]], b:[0,0,zs[i+1]], r:(rs[i]+rs[i+1])/2, c:'body'});
   for (const s of [1,-1]){
-    P.push({k:'poly', c:wingC, pts:[[1.5*s,-0.6,4],[16*s,0.9,-4],[16*s,0.9,-5.6],[1.5*s,-0.6,-2.5]]});
-    P.push({k:'poly', c:acc,   pts:[[16*s,0.9,-4],[16.4*s,2.7,-5.7],[16.4*s,2.7,-6.4],[16*s,0.9,-5.6]]});
-    P.push({k:'seg',  c:eng,   a:[6*s,-1.7,4.5], b:[6*s,-1.7,0.5], r:0.95});
-    P.push({k:'poly', c:wingC, pts:[[1*s,0.3,-11],[6*s,0.9,-14.4],[6*s,0.9,-15.3],[1*s,0.3,-13.6]]});
+    P.push({k:'poly', c:'wing', pts:[[1.5*s,-0.6,4],[16*s,0.9,-4],[16*s,0.9,-5.6],[1.5*s,-0.6,-2.5]]});
+    P.push({k:'poly', c:'acc',  pts:[[16*s,0.9,-4],[16.4*s,2.7,-5.7],[16.4*s,2.7,-6.4],[16*s,0.9,-5.6]]});
+    P.push({k:'seg',  c:'eng',  a:[6*s,-1.7,4.5], b:[6*s,-1.7,0.5], r:0.95});
+    P.push({k:'poly', c:'wing', pts:[[1*s,0.3,-11],[6*s,0.9,-14.4],[6*s,0.9,-15.3],[1*s,0.3,-13.6]]});
   }
-  P.push({k:'poly', c:acc, pts:[[0,1.2,-10],[0,6.6,-14.4],[0,6.6,-15.9],[0,1.2,-15]]});
+  P.push({k:'poly', c:'acc', pts:[[0,1.2,-10],[0,6.6,-14.4],[0,6.6,-15.9],[0,1.2,-15]]});
   return P;
 })();
 const CAM = {y:9, z:-42};
+
+// ---------- 시간대 ----------
+function timeOfDay(){
+  if (opt.tod !== 'auto') return opt.tod;
+  const d = new Date(), h = d.getHours() + d.getMinutes()/60;
+  if ((h >= 6 && h < 7.5) || (h >= 17.5 && h < 19.5)) return 'dusk';
+  return h >= 7.5 && h < 17.5 ? 'day' : 'night';
+}
+const PAL = {
+  day:  {sky:['#2f6db5','#7fb0dd','#dbe9f3'], grd:['#a3ada3','#5b6a52','#2f3a2b'], mount:'#a9b9c9', back:'#8fa1b5', front:'#71839a', land:'#5a6c85', snow:'#f4f7fb',
+         cloud:'rgba(255,255,255,A)', ca:0.6, gdot:'rgba(55,66,58,A)', ga:0.35, glow:0, star:0, win:0,
+         body:'#eef2f7', wing:'#b8c3d1', eng:'#7f8c9e', acc:'#f2c14e'},
+  dusk: {sky:['#1d2350','#8a4c72','#f39c5a'], grd:['#4a3a42','#221a22','#0e0b0f'], mount:'#5b4662', back:'#3c3248', front:'#2a2236', land:'#221b2d', snow:'#e9c3b8',
+         cloud:'rgba(255,186,165,A)', ca:0.42, gdot:'rgba(255,196,120,A)', ga:0.6, glow:0.55, star:0.35, win:0.6,
+         body:'#cfc8d2', wing:'#958fa2', eng:'#5f5a6e', acc:'#f2b44e'},
+  night:{sky:['#02050d','#0a1430','#2b2a48'], grd:['#17141f','#07070c','#030305'], mount:'#141c30', back:'#111a2d', front:'#0a1120', land:'#0d1528', snow:'#3c4660',
+         cloud:'rgba(95,105,135,A)', ca:0.3, gdot:'rgba(255,198,120,A)', ga:0.9, glow:1, star:1, win:1,
+         body:'#8d98ab', wing:'#5f6a7d', eng:'#3f4858', acc:'#c99a3a'}
+};
+
+// ---------- 공항 도시 ----------
+// span: 도시가 펼쳐진 각도(±도), h: 일반 건물 높이 범위, mount: [방향, 반폭(도), 높이, 종류], marks: [랜드마크, 방향]
+const CITIES = {
+  ICN:{name:'서울 · 인천', span:70, h:[25,85], mount:[[-62,26,60],[-28,20,75],[12,30,62],[52,24,55]], marks:[['namsan',-26],['b63',-10],['lotte',20]]},
+  JFK:{name:'뉴욕 · JFK', span:55, h:[35,120], marks:[['wtc',-20],['empire',-3],['chrysler',7]]},
+  CDG:{name:'파리 · 샤를드골', span:75, h:[18,34], cluster:[26,7,[80,140]], marks:[['eiffel',-10]]},
+  LHR:{name:'런던 · 히스로', span:70, h:[20,60], cluster:[12,6,[60,110]], marks:[['bigben',-24],['eye',-15],['shard',5]]},
+  HND:{name:'도쿄 · 하네다', span:80, h:[25,95], mount:[[-50,24,125,'fuji']], marks:[['tokyoTower',-14],['skytree',15]]},
+  DXB:{name:'두바이', span:60, h:[30,120], marks:[['arab',-32],['burj',0]]},
+  SIN:{name:'싱가포르 · 창이', span:60, h:[35,110], marks:[['mbs',-6]]}
+};
+// 랜드마크 실루엣 (단위 u, y는 위쪽이 +). 여러 다각형 묶음.
+const SHAPES = {
+  lotte:[[[-9,0],[-7,120],[-3,200],[0,215],[3,200],[7,120],[9,0]]],
+  b63:[[[-8,0],[-8,95],[-4,102],[8,102],[8,0]]],
+  namsan:[[[-60,0],[-40,18],[-15,30],[0,32],[15,30],[40,18],[60,0]],
+          [[-1.5,30],[-1.5,80],[-6,80],[-6,88],[-1.2,90],[-0.5,120],[0.5,120],[1.2,90],[6,88],[6,80],[1.5,80],[1.5,30]]],
+  empire:[[[-14,0],[-14,110],[-10,110],[-10,140],[-6,140],[-6,160],[-3,160],[-3,175],[-1,175],[-0.5,205],[0.5,205],[1,175],[3,175],[3,160],[6,160],[6,140],[10,140],[10,110],[14,110],[14,0]]],
+  wtc:[[[-12,0],[-12,40],[-8,200],[-0.6,200],[0,250],[0.6,200],[8,200],[12,40],[12,0]]],
+  chrysler:[[[-9,0],[-9,110],[-6,125],[-4,140],[-2,155],[-0.6,185],[0.6,185],[2,155],[4,140],[6,125],[9,110],[9,0]]],
+  eiffel:[[[-28,0],[-20,20],[-12,55],[-6,100],[-3,150],[-1.5,185],[0,205],[1.5,185],[3,150],[6,100],[12,55],[20,20],[28,0],[16,0],[12,12],[6,20],[0,22],[-6,20],[-12,12],[-16,0]]],
+  skytree:[[[-14,0],[-6,60],[-3,150],[-2.5,200],[-5,205],[-5,215],[-2.5,218],[-2,260],[-4,262],[-4,270],[-1.2,272],[-0.6,330],[0.6,330],[1.2,272],[4,270],[4,262],[2,260],[2.5,218],[5,215],[5,205],[2.5,200],[3,150],[6,60],[14,0]]],
+  shard:[[[-14,0],[-3,190],[-1,215],[0.5,205],[1.5,222],[3,190],[12,0]]],
+  bigben:[[[-6,0],[-6,90],[-7,90],[-7,100],[-6,100],[-6,110],[-3,125],[0,142],[3,125],[6,110],[6,100],[7,100],[7,90],[6,90],[6,0]]],
+  burj:[[[-16,0],[-14,80],[-10,80],[-9,160],[-6,160],[-5,240],[-3,240],[-2,300],[-0.7,300],[0,380],[0.7,300],[2,300],[3,240],[5,240],[6,160],[9,160],[10,80],[14,80],[16,0]]],
+  arab:[[[-12,0],[-10,60],[-5,110],[2,140],[5,152],[7,110],[9,45],[11,0]]],
+  mbs:[[[-34,0],[-34,105],[-24,105],[-24,0]],[[-5,0],[-5,108],[5,108],[5,0]],[[24,0],[24,111],[34,111],[34,0]],[[-42,104],[-42,112],[48,117],[48,110]]]
+};
+SHAPES.tokyoTower = [SHAPES.eiffel[0].map(([x,y]) => [x*0.8, y*0.78])];
+const SHAPE_TOP = {}; for (const k in SHAPES) SHAPE_TOP[k] = Math.max(...SHAPES[k].flat().map(p => p[1]));
+// 원래 색이 있는 랜드마크 (도쿄타워 빨강, 밤의 에펠탑 조명 등)
+const LIT = {
+  tokyoTower:{day:'#d6512f', dusk:'#b8452a', night:'#e07a2e'},
+  eiffel:{dusk:'#7d5f36', night:'#c79a3c'},
+  eye:{night:'#4f8fd0'}
+};
+
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let scene = null;
+function buildScene(id){
+  const C = CITIES[id];
+  let seed = 7; for (const ch of id) seed = seed*31 + ch.charCodeAt(0);
+  const rnd = mulberry(seed);
+  const layers = [[],[]];
+  layers.forEach((L, li) => {
+    let b = -C.span;
+    while (b < C.span){
+      const w = 0.5 + rnd()*1.3, center = 1 - Math.abs(b)/C.span;
+      let h = (C.h[0] + rnd()*(C.h[1]-C.h[0])) * (0.3 + 0.7*center) * (li ? 0.55 : 1);
+      if (!li && C.cluster && Math.abs(b - C.cluster[0]) < C.cluster[1]) h = C.cluster[2][0] + rnd()*(C.cluster[2][1]-C.cluster[2][0]);
+      const win = [], n = Math.floor(h/10 * rnd());
+      for (let k = 0; k < n; k++) win.push([0.15 + rnd()*0.7, 0.08 + rnd()*0.85]);
+      L.push({b, w, h, win});
+      b += w*(0.55 + rnd()*0.7);
+    }
+  });
+  const lights = []; for (let i = 0; i < 340; i++) lights.push({b:(rnd()*2-1)*(C.span+25), d:rnd()*rnd(), s:rnd()});
+  const stars = []; for (let i = 0; i < 120; i++) stars.push({b:rnd()*360, e:rnd(), s:rnd()});
+  return {id, C, layers, lights, stars};
+}
+const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
+
+function drawCity(t, cx, hy, f, P, tod){
+  if (!scene || scene.id !== opt.city) scene = buildScene(opt.city);
+  const C = scene.C, ppd = f*D2R;
+  const alt = opt.speed >= 230 ? 0.65 : opt.speed >= 150 ? 0.35 : 0;   // 높이 올라갈수록 도시가 작고 흐려짐
+  const u = f*0.0012*(1 - alt*0.6);
+  const X = b => cx + wrap180(b + S.heading)*ppd;
+
+  // 별
+  if (P.star){
+    ctx.fillStyle = '#ffffff';
+    for (const s of scene.stars){
+      const x = X(s.b); if (x < -2 || x > W+2) continue;
+      const y = hy*0.92*(1 - s.e);
+      ctx.globalAlpha = P.star*(0.25 + 0.75*s.s)*Math.min(1, (hy - y)/80);
+      ctx.fillRect(x, y, s.s > 0.85 ? 2 : 1.2, s.s > 0.85 ? 2 : 1.2);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // 해 (낮: 높이, 노을: 지평선 가까이)
+  if (tod !== 'night'){
+    const sx = X(tod === 'day' ? 55 : 38), sy = tod === 'day' ? hy*0.3 : hy - 14, r = tod === 'day' ? 90 : 150;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    g.addColorStop(0, tod === 'day' ? 'rgba(255,255,240,.9)' : 'rgba(255,200,120,.95)');
+    g.addColorStop(0.12, tod === 'day' ? 'rgba(255,255,230,.5)' : 'rgba(255,160,90,.55)');
+    g.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = g; ctx.fillRect(sx-r, sy-r, r*2, r*2);
+  }
+  // 밤 도시 불빛이 하늘에 번지는 빛
+  if (P.glow){
+    const x0 = X(0), hw = (C.span+20)*ppd;
+    const g = ctx.createLinearGradient(0, hy-90, 0, hy);
+    g.addColorStop(0, 'rgba(255,160,90,0)'); g.addColorStop(1, `rgba(255,160,90,${0.22*P.glow})`);
+    ctx.fillStyle = g; ctx.fillRect(Math.max(0, x0-hw), hy-90, Math.min(W, x0+hw) - Math.max(0, x0-hw), 90);
+  }
+  // 산
+  for (const m of C.mount || []){
+    const x = X(m[0]), hw = m[1]*ppd, hh = m[2]*u;
+    if (x + hw < 0 || x - hw > W) continue;
+    ctx.fillStyle = P.mount; ctx.beginPath(); ctx.moveTo(x-hw, hy);
+    if (m[3] === 'fuji'){
+      ctx.quadraticCurveTo(x-hw*0.45, hy-hh*0.3, x-hw*0.11, hy-hh); ctx.lineTo(x+hw*0.11, hy-hh);
+      ctx.quadraticCurveTo(x+hw*0.45, hy-hh*0.3, x+hw, hy); ctx.fill();
+      ctx.fillStyle = P.snow; ctx.beginPath();
+      ctx.moveTo(x-hw*0.11, hy-hh); ctx.lineTo(x+hw*0.11, hy-hh); ctx.lineTo(x+hw*0.21, hy-hh*0.72);
+      ctx.lineTo(x+hw*0.1, hy-hh*0.78); ctx.lineTo(x, hy-hh*0.7); ctx.lineTo(x-hw*0.09, hy-hh*0.8); ctx.lineTo(x-hw*0.21, hy-hh*0.72);
+      ctx.fill();
+    } else {
+      ctx.quadraticCurveTo(x-hw*0.35, hy-hh*1.25, x, hy-hh); ctx.quadraticCurveTo(x+hw*0.4, hy-hh*0.85, x+hw, hy); ctx.fill();
+    }
+  }
+  const layer = (L, col, base) => {
+    ctx.fillStyle = col;
+    for (const b of L){ const x = X(b.b), w = b.w*ppd; if (x + w < 0 || x > W) continue; const h = b.h*u; ctx.fillRect(x, hy+base-h, w+0.6, h); }
+    if (!P.win) return;
+    ctx.fillStyle = `rgba(255,214,140,${0.85*P.win})`;
+    for (const b of L){ const x = X(b.b), w = b.w*ppd; if (x + w < 0 || x > W) continue; const h = b.h*u;
+      for (const p of b.win) ctx.fillRect(x + p[0]*w, hy + base - p[1]*h, 1.3, 1.3); }
+  };
+  layer(scene.layers[0], P.back, 0);
+  // 랜드마크
+  for (const [k, b] of C.marks){
+    const x = X(b); if (x < -200 || x > W+200) continue;
+    const col = (LIT[k] && LIT[k][tod]) || P.land;
+    if (k === 'eye'){
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, 3*u);
+      ctx.beginPath(); ctx.arc(x, hy - 52*u, 46*u, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x-14*u, hy); ctx.lineTo(x, hy-52*u); ctx.lineTo(x+14*u, hy); ctx.stroke();
+      continue;
+    }
+    ctx.fillStyle = col;
+    for (const poly of SHAPES[k]){
+      ctx.beginPath(); poly.forEach(([px,py], i) => i ? ctx.lineTo(x+px*u, hy-py*u) : ctx.moveTo(x+px*u, hy-py*u)); ctx.closePath(); ctx.fill();
+    }
+    // 높은 건물 꼭대기 항공 장애등 (밤에 깜빡임)
+    if (P.glow && ((t/1000 + b*0.13) % 1.6) < 0.8){
+      const ty = hy - SHAPE_TOP[k]*u - 1;
+      ctx.fillStyle = 'rgba(255,60,50,.35)'; ctx.beginPath(); ctx.arc(x, ty, 4, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ff4a3d'; ctx.beginPath(); ctx.arc(x, ty, 1.6, 0, 7); ctx.fill();
+    }
+  }
+  layer(scene.layers[1], P.front, 2);
+  // 지평선 아래 도시 불빛
+  if (P.glow){
+    for (const l of scene.lights){
+      const x = X(l.b); if (x < -4 || x > W+4) continue;
+      const y = hy + 3 + l.d*70*(1 - alt*0.6);
+      ctx.fillStyle = `rgba(255,${190 + (l.s*50|0)},${110 + (l.s*80|0)},${P.glow*(0.35 + 0.6*l.s)})`;
+      const r = 0.6 + l.s*0.9 + l.d*1.2; ctx.fillRect(x - r/2, y - r/2, r, r);
+    }
+  }
+  // 고도가 높으면 지평선 쪽이 뿌옇게
+  if (alt){
+    const g = ctx.createLinearGradient(0, hy-140, 0, hy+60);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.7, P.sky[2]); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = alt*0.7; ctx.fillStyle = g; ctx.fillRect(0, hy-140, W, 200); ctx.globalAlpha = 1;
+  }
+}
+
 const parts = [];
 function spawn(p, anywhere){
-  p.g = Math.random() < 0.45;                       // 땅 위 점 / 구름
+  p.g = Math.random() < 0.55;                       // 땅 위 점 / 구름
   p.x = (Math.random()*2-1) * 260;
   p.y = p.g ? -60 : (Math.random()*40 - 16);
   p.z = anywhere ? 20 + Math.random()*420 : 440;
-  p.s = p.g ? 0.8 : 5 + Math.random()*7;
+  p.s = p.g ? 0.8 : 4 + Math.random()*5;
   return p;
 }
-for (let i = 0; i < 70; i++) parts.push(spawn({}, true));
+for (let i = 0; i < 110; i++) parts.push(spawn({}, true));
 let chaseLast = 0;
 
 function drawChase(t){
   const dt = Math.min(0.1, (t - (chaseLast||t))/1000); chaseLast = t;
+  const tod = timeOfDay(), P = PAL[tod];
   const roll = (S.roll - S.zeroRoll)*D2R, pitch = (S.pitch - S.zeroPitch)*1.5*D2R;
   const cx = W/2, hy = H*0.44, f = Math.min(W*0.95, H*0.6);
 
   // 하늘 / 땅 (수평선은 고정)
   let g = ctx.createLinearGradient(0,0,0,hy);
-  g.addColorStop(0,'#0e1c33'); g.addColorStop(1,'#4b7cab');
-  ctx.fillStyle = g; ctx.fillRect(0,0,W,hy);
+  g.addColorStop(0,P.sky[0]); g.addColorStop(0.6,P.sky[1]); g.addColorStop(1,P.sky[2]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,hy+1);
   g = ctx.createLinearGradient(0,hy,0,H);
-  g.addColorStop(0,'#4a3b29'); g.addColorStop(1,'#120e0a');
+  g.addColorStop(0,P.grd[0]); g.addColorStop(0.35,P.grd[1]); g.addColorStop(1,P.grd[2]);
   ctx.fillStyle = g; ctx.fillRect(0,hy,W,H-hy);
-  ctx.fillStyle = 'rgba(242,193,78,.7)'; ctx.fillRect(0,hy-1,W,2);
+  drawCity(t, cx, hy, f, P, tod);
 
   // 구름·땅 점 이동: 앞으로 날아가는 속도 + 선회하면 옆으로 흐름
   const th = S.yaw*dt*D2R, c = Math.cos(th), s = Math.sin(th), sp = 70*dt;
@@ -366,9 +570,11 @@ function drawChase(t){
     const [sx, sy] = proj(p.x, p.y - CAM.y, p.z);
     const fade = Math.min(1, (440 - p.z)/120) * Math.min(1, p.z/30);
     const r = f*p.s/p.z;
-    if (p.g){ ctx.fillStyle = `rgba(255,214,150,${0.45*fade})`; ctx.beginPath(); ctx.arc(sx,sy,Math.max(1,r),0,7); ctx.fill(); }
+    if (p.g){ ctx.fillStyle = P.gdot.replace('A', (P.ga*fade).toFixed(3)); ctx.beginPath(); ctx.arc(sx,sy,Math.max(1,r),0,7); ctx.fill(); }
     else {
-      ctx.fillStyle = `rgba(235,242,250,${0.22*fade})`;
+      // 가까운 구름은 흐리게 (도시와 비행기를 가리지 않게), 이착륙 땐 구름이 적음
+      const cf = fade * Math.min(1, Math.max(0, (p.z - 15)/90)) * (opt.speed < 150 ? 0.5 : 1);
+      ctx.fillStyle = P.cloud.replace('A', (P.ca*cf).toFixed(3));
       ctx.beginPath(); ctx.arc(sx,sy,r,0,7); ctx.arc(sx+r*0.9,sy+r*0.25,r*0.7,0,7); ctx.arc(sx-r*0.9,sy+r*0.3,r*0.6,0,7); ctx.fill();
     }
   };
@@ -395,13 +601,27 @@ function drawChase(t){
       const w = 2*f*pr.r/d;
       ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
-      ctx.strokeStyle = pr.c; ctx.lineWidth = w;
+      ctx.strokeStyle = P[pr.c]; ctx.lineWidth = w;
       ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
     } else {
-      ctx.fillStyle = pr.c; ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = 1.2;
+      ctx.fillStyle = P[pr.c]; ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = 1.2;
       ctx.beginPath(); sc.forEach((q,i) => i ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
   }
+  // 항법등: 오른쪽 날개 초록, 왼쪽 빨강, 꼬리 흰색, 날개 끝 섬광
+  const navLight = (v, col, r) => {
+    const q = tf(v), [x, y] = proj(q[0], q[1], q[2]);
+    const gl = ctx.createRadialGradient(x, y, 0, x, y, r*4);
+    gl.addColorStop(0, col); gl.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = tod === 'day' ? 0.5 : 1;
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, r*4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r*0.45, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+  navLight([16.3,1,-4.8], 'rgba(60,255,140,.9)', 3);
+  navLight([-16.3,1,-4.8], 'rgba(255,70,70,.9)', 3);
+  navLight([0,0.6,-15.4], 'rgba(255,255,255,.8)', 2.5);
+  if (t % 1300 < 90){ navLight([16.3,1,-5.2], 'rgba(255,255,255,1)', 6); navLight([-16.3,1,-5.2], 'rgba(255,255,255,1)', 6); }
   near.forEach(drawPart);
 
   drawGauges(t, cx, hy + f*CAM.y/(-CAM.z), S.roll - S.zeroRoll);
@@ -501,17 +721,12 @@ function drawCockpit(t){
 let lastHud = 0;
 function updateHud(t){
   if (t - lastHud < 200) return; lastHud = t;
-  const roll = S.roll - S.zeroRoll, pitch = S.pitch - S.zeroPitch;
-  $('rRoll').textContent = (roll >= 0.5 ? '오 ' : roll <= -0.5 ? '왼 ' : '') + Math.abs(roll).toFixed(0) + '°';
-  $('rPitch').textContent = (pitch >= 0.5 ? '↑ ' : pitch <= -0.5 ? '↓ ' : '') + Math.abs(pitch).toFixed(0) + '°';
-  $('rTurn').textContent = Math.abs(S.yaw).toFixed(1) + '°/s';
-
-  let text = '수평 비행', color = 'var(--ok)';
-  if (roll > 5 || S.yaw < -0.6){ text = '오른쪽으로 선회 중'; color = 'var(--warn)'; }
-  else if (roll < -5 || S.yaw > 0.6){ text = '왼쪽으로 선회 중'; color = 'var(--warn)'; }
-  else if (pitch > 4){ text = '상승 중'; color = 'var(--warn)'; }
-  else if (pitch < -4){ text = '하강 중'; color = 'var(--warn)'; }
-  $('stateText').textContent = text; $('dot').style.background = color; $('dot').style.color = color;
+  const roll = S.roll - S.zeroRoll, a = Math.abs(roll);
+  $('tiltNum').textContent = a.toFixed(0) + '°';
+  $('tiltNum').style.color = a < 5 ? 'var(--ok)' : a < 20 ? 'var(--warn)' : 'var(--bad)';
+  $('tiltDir').textContent = a < 3 ? '수평' : (roll > 0 ? '오른쪽' : '왼쪽') + '으로 기울어짐';
+  $('tiltLvl').textContent = a < 3 ? '안정적으로 날고 있어요' : a < 10 ? '살짝 기울었어요' : a < 20 ? '보통 정도로 기울었어요' : '크게 기울었어요. 화면 속 비행기를 보세요';
+  $('cityTag').textContent = CITIES[opt.city].name + ' · ' + {day:'낮', dusk:'노을', night:'밤'}[timeOfDay()];
 
   const tb = S.turb;
   const tt = tb < 0.4 ? ['난기류 없음','var(--muted)'] : tb < 1.2 ? ['난기류 약함','var(--warn)'] : tb < 2.5 ? ['난기류 보통','var(--warn)'] : ['난기류 강함','var(--bad)'];
@@ -603,6 +818,8 @@ $('tipsClose').addEventListener('click', () => $('tips').hidden = true);
 $('btnSet').addEventListener('click', () => $('settings').hidden = false);
 $('setClose').addEventListener('click', () => $('settings').hidden = true);
 for (const id of ['tips','settings']) $(id).addEventListener('click', e => { if (e.target.id === id) $(id).hidden = true; });
+$('city').addEventListener('change', e => { opt.city = e.target.value; store.set('city', opt.city); S.heading = 0; if (!running) draw(0); });
+$('tod').addEventListener('change', e => { opt.tod = e.target.value; store.set('tod', opt.tod); if (!running) draw(0); });
 $('phase').addEventListener('change', e => { opt.speed = +e.target.value; store.set('speed', opt.speed); });
 $('optVibe').addEventListener('change', e => { opt.vibe = e.target.checked; store.set('vibe', opt.vibe); });
 $('optBanner').addEventListener('change', e => { opt.banner = e.target.checked; store.set('banner', opt.banner); });
