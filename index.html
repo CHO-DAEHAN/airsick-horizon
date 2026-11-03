@@ -457,19 +457,22 @@ function draw(t){
 
 
 // ---------- 3인칭 시점: 뒤에서 따라가며 비행기를 바라봄 ----------
-// 좌표: x 오른쪽, y 위, z 앞(기수 방향). 비행기 원점 기준. 색은 시간대 팔레트 키.
+// 비행기 모형: 몸통·엔진은 단면 원을 촘촘히 이어 매끈한 원통으로, 날개·꼬리는 그라데이션 면으로 그림
+// 좌표: x 오른쪽, y 위, z 앞(기수 방향). 단면은 [x, y, z, 반지름], 기수(먼 쪽)부터 꼬리(가까운 쪽) 순서
 const PLANE = (() => {
-  const P = [];
-  const zs = [-15,-11,-6,0,6,11,15,17.5], rs = [0.6,1.3,1.75,1.8,1.8,1.6,1.1,0.4];
-  for (let i = 0; i < zs.length-1; i++) P.push({k:'seg', a:[0,0,zs[i]], b:[0,0,zs[i+1]], r:(rs[i]+rs[i+1])/2, c:'body'});
-  for (const s of [1,-1]){
-    P.push({k:'poly', c:'wing', pts:[[1.5*s,-0.6,4],[16*s,0.9,-4],[16*s,0.9,-5.6],[1.5*s,-0.6,-2.5]]});
-    P.push({k:'poly', c:'acc',  pts:[[16*s,0.9,-4],[16.4*s,2.7,-5.7],[16.4*s,2.7,-6.4],[16*s,0.9,-5.6]]});
-    P.push({k:'seg',  c:'eng',  a:[6*s,-1.7,4.5], b:[6*s,-1.7,0.5], r:0.95});
-    P.push({k:'poly', c:'wing', pts:[[1*s,0.3,-11],[6*s,0.9,-14.4],[6*s,0.9,-15.3],[1*s,0.3,-13.6]]});
+  const body = [];
+  for (let z = 17.6; z >= -16; z -= 0.4){
+    let r = 1.8, y = 0;
+    if (z > 12) r = 1.8*Math.sqrt(Math.max(0, 1 - Math.pow((z-12)/5.7, 2)));            // 둥근 기수
+    else if (z < -7){ const k = (-7 - z)/9; r = 1.8 - 1.45*Math.pow(k, 1.2); y = 0.95*k*k; } // 위로 올라가며 가늘어지는 꼬리
+    body.push([0, y, z, Math.max(0.28, r)]);
   }
-  P.push({k:'poly', c:'acc', pts:[[0,1.2,-10],[0,6.6,-14.4],[0,6.6,-15.9],[0,1.2,-15]]});
-  return P;
+  const engine = s => { const E = []; for (let z = 5.2; z >= 0.2; z -= 0.3){ const k = (5.2 - z)/5; E.push([6*s, -1.75, z, 1.0 - 0.3*k*k]); } return E; };
+  const wing = s => [[1.6*s,-0.7,4.5],[9*s,0.1,-0.3],[16*s,0.9,-4.2],[16.25*s,0.95,-5.7],[9*s,0.2,-4.8],[1.6*s,-0.6,-3.4]];
+  const winglet = s => [[16*s,0.9,-4.2],[16.5*s,2.8,-5.8],[16.6*s,2.85,-6.5],[16.25*s,0.95,-5.7]];
+  const stab = s => [[0.6*s,0.45,-11],[6*s,1.0,-14.3],[6.1*s,1.02,-15.3],[0.6*s,0.55,-13.9]];
+  const fin = [[0,1.3,-9.4],[0,6.9,-14.1],[0,7.0,-15.9],[0,1.3,-15.5]];
+  return {body, engR:engine(1), engL:engine(-1), wingR:wing(1), wingL:wing(-1), wlR:winglet(1), wlL:winglet(-1), stabR:stab(1), stabL:stab(-1), fin};
 })();
 const CAM = {y:9, z:-42};
 
@@ -964,7 +967,7 @@ function drawChase(t){
   const near = parts.filter(p => p.z <= -CAM.z).sort((a,b) => b.z - a.z);
   far.forEach(drawPart);
 
-  // 비행기: 롤 → 피치 회전 후 원근 투영, 먼 부품부터 그림
+  // 비행기: 롤 → 피치 회전 후 원근 투영. 카메라가 뒤쪽 위라서 엔진 → 날개 → 몸통 → 꼬리 순으로 그림
   const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp2 = Math.sin(pitch);
   const bobY = S.bob*0.03 + (reduceMotion ? 0 : Math.sin(t/900)*0.15);
   const tf = v => {
@@ -972,24 +975,58 @@ function drawChase(t){
     const y2 = y*cp + z*sp2, z2 = -y*sp2 + z*cp;
     return [x, y2 + bobY - CAM.y, z2 - CAM.z];
   };
-  const prims = PLANE.map(pr => {
-    const pts = pr.k === 'seg' ? [tf(pr.a), tf(pr.b)] : pr.pts.map(tf);
-    return {pr, pts, d: pts.reduce((m,q) => m + q[2], 0)/pts.length};
-  }).sort((a,b) => b.d - a.d);
+  const shade = (c, k) => [mix(c, '#ffffff', 0.5*k), c, mix(c, '#141b28', 0.5)];
+  const bodyC = shade(P.body, 1), engC = shade(P.eng, 0.7);
+  // 원통: 단면 원마다 위쪽은 밝고 아래쪽은 어둡게
+  const tube = (secs, cols) => {
+    let last = null;
+    for (const s of secs){
+      const q = tf(s); if (q[2] < 1) continue;
+      const [x, y] = proj(q[0], q[1], q[2]), r = f*s[3]/q[2];
+      const gr = ctx.createLinearGradient(x - r*0.35, y - r, x + r*0.35, y + r);
+      gr.addColorStop(0, cols[0]); gr.addColorStop(0.45, cols[1]); gr.addColorStop(1, cols[2]);
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      last = [x, y, r];
+    }
+    return last;
+  };
+  // 면: 뿌리 → 끝으로 색이 변하고, 앞전에 얇은 빛
+  const surf = (pts, c0, c1, edge) => {
+    const sc = pts.map(v => { const q = tf(v); return proj(q[0], q[1], q[2]); });
+    const gr = ctx.createLinearGradient(sc[0][0], sc[0][1], sc[2][0], sc[2][1]);
+    gr.addColorStop(0, c0); gr.addColorStop(1, c1);
+    ctx.fillStyle = gr; ctx.beginPath(); sc.forEach((q,i) => i ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(10,16,28,.18)'; ctx.lineWidth = 0.7; ctx.stroke();
+    if (edge){
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1;
+      ctx.beginPath(); edge.forEach((i,k) => k ? ctx.lineTo(sc[i][0],sc[i][1]) : ctx.moveTo(sc[i][0],sc[i][1])); ctx.stroke();
+    }
+    return sc;
+  };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  for (const {pr, pts, d} of prims){
-    const sc = pts.map(q => proj(q[0], q[1], q[2]));
-    if (pr.k === 'seg'){
-      const w = 2*f*pr.r/d;
-      ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = w + 2;
-      ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
-      ctx.strokeStyle = P[pr.c]; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
-    } else {
-      ctx.fillStyle = P[pr.c]; ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = 1.2;
-      ctx.beginPath(); sc.forEach((q,i) => i ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fill(); ctx.stroke();
+  // 엔진 + 뒤쪽 배기구
+  for (const e of [PLANE.engR, PLANE.engL]){
+    const end = tube(e, engC);
+    if (end){
+      ctx.fillStyle = mix(P.eng, '#05080d', 0.7); ctx.beginPath(); ctx.arc(end[0], end[1], end[2]*0.62, 0, 7); ctx.fill();
+      ctx.fillStyle = mix(P.eng, '#05080d', 0.4); ctx.beginPath(); ctx.arc(end[0], end[1] - end[2]*0.08, end[2]*0.3, 0, 7); ctx.fill();
     }
   }
+  // 날개 + 플랩 선 + 윙렛
+  const wingHi = mix(P.wing, '#ffffff', 0.25), wingLo = mix(P.wing, '#141b28', 0.18);
+  for (const [w, wl, s] of [[PLANE.wingR, PLANE.wlR, 1], [PLANE.wingL, PLANE.wlL, -1]]){
+    surf(w, wingHi, wingLo, [0,1,2]);
+    const a = tf([2.6*s,-0.52,-2.6]), b = tf([14.6*s,0.84,-5.2]);
+    const [ax, ay] = proj(a[0],a[1],a[2]), [bx, by] = proj(b[0],b[1],b[2]);
+    ctx.strokeStyle = 'rgba(10,16,28,.22)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    surf(wl, mix(P.acc, '#ffffff', 0.15), mix(P.acc, '#141b28', 0.25));
+  }
+  // 몸통
+  const tail = tube(PLANE.body, bodyC);
+  if (tail){ ctx.fillStyle = mix(P.body, '#141b28', 0.6); ctx.beginPath(); ctx.arc(tail[0], tail[1], tail[2]*0.55, 0, 7); ctx.fill(); }
+  // 수평 꼬리날개, 수직 꼬리날개
+  for (const st of [PLANE.stabR, PLANE.stabL]) surf(st, wingHi, wingLo, [0,1]);
+  surf(PLANE.fin, mix(P.acc, '#ffffff', 0.1), mix(P.acc, '#141b28', 0.35), [0,1]);
   // 항법등: 오른쪽 날개 초록, 왼쪽 빨강, 꼬리 흰색, 날개 끝 섬광
   const navLight = (v, col, r) => {
     const q = tf(v), [x, y] = proj(q[0], q[1], q[2]);
