@@ -86,6 +86,21 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line);flex:none}
 .intro .btns{display:flex;gap:10px;flex-wrap:wrap}
 .intro .btns button{flex:1 1 140px;padding:14px}
 .err{color:var(--bad);font-size:14px;line-height:1.5}
+/* 탑승객 사진 */
+.crew{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.crew .lbl{font-size:14px;font-weight:700;color:var(--muted)}
+.face{width:48px;height:48px;border-radius:50%;padding:0;overflow:hidden;display:grid;place-items:center;font-size:22px;font-weight:400;
+  border:1.5px dashed rgba(255,255,255,.4);background:rgba(255,255,255,.06)}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+.face.on{border:2px solid var(--line)}
+.crew .mk{margin-left:auto;padding:10px 12px;font-size:13px}
+.crew small{flex-basis:100%;font-size:12px;color:var(--muted)}
+#cropCv{width:min(260px,70vw);height:auto;aspect-ratio:1;align-self:center;border-radius:12px;touch-action:none;background:#000;cursor:grab}
+#shareImg{width:100%;max-height:52vh;object-fit:contain;border-radius:12px;background:#000}
+.sheet .btns{display:flex;gap:10px}
+.sheet .btns button{flex:1}
+.sheet .hint{font-size:13px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--line)}
 @media (prefers-reduced-motion:reduce){.banner{transition:none}}
 </style>
 </head>
@@ -111,6 +126,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line);flex:none}
   <div class="seg" id="phaseSeg" role="group">
     <button data-p="takeoff" data-i18n="takeoff"></button><button data-p="cruise" data-i18n="cruise"></button><button data-p="landing" data-i18n="landing"></button>
   </div>
+  <button id="btnCard" data-i18n="card_btn"></button>
   <button id="btnTips" data-i18n="tips_btn"></button>
   <button id="btnZero" data-i18n="zero"></button>
   <button id="btnBreath" aria-pressed="false" data-i18n="breath"></button>
@@ -132,6 +148,14 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line);flex:none}
       <label for="arr" data-i18n="arr"></label><select id="arr"></select>
     </div>
     <p class="hint" data-i18n="intro_hint"></p>
+    <div class="crew">
+      <span class="lbl" data-i18n="crew"></span>
+      <button class="face" id="face0"><img alt="" hidden><span>+</span></button>
+      <button class="face" id="face1"><img alt="" hidden><span>+</span></button>
+      <button class="mk" id="btnCard2" data-i18n="card_make"></button>
+      <small data-i18n="crew_hint"></small>
+    </div>
+    <input type="file" id="facePick" accept="image/*" hidden>
     <div class="btns">
       <button class="primary" id="btnStart" data-i18n="start"></button>
       <button id="btnDemo" data-i18n="demo"></button>
@@ -170,6 +194,26 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line);flex:none}
     </div>
     <label class="chk"><input type="checkbox" id="optBanner" checked> <span data-i18n="opt_banner"></span></label>
     <button id="setClose" class="primary" data-i18n="close"></button>
+  </div>
+</div>
+
+<div class="sheet" id="cropSheet" hidden>
+  <div class="card">
+    <h2 data-i18n="crop_title"></h2>
+    <canvas id="cropCv" width="520" height="520"></canvas>
+    <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1">
+    <p class="hint" data-i18n="crop_hint"></p>
+    <div class="btns"><button id="cropRemove" data-i18n="crop_remove"></button><button id="cropOk" class="primary" data-i18n="crop_ok"></button></div>
+  </div>
+</div>
+
+<div class="sheet" id="shareSheet" hidden>
+  <div class="card">
+    <h2 data-i18n="card_btn"></h2>
+    <img id="shareImg" alt="">
+    <p class="hint" data-i18n="share_hint"></p>
+    <div class="btns"><button id="shareSave" data-i18n="save"></button><button id="shareGo" class="primary" data-i18n="share"></button></div>
+    <button id="shareClose" data-i18n="close"></button>
   </div>
 </div>
 
@@ -218,7 +262,11 @@ const I18N = {
     err_denied:'동작 센서 권한이 거부됐어요. 설정 > Safari > 동작 및 방향 접근을 켠 뒤 다시 시도하세요.',
     err_perm:'센서 권한을 요청하지 못했어요: ',
     err_nosensor:'이 기기에서 자이로 센서 값을 받지 못했어요. 폰에서 열었는지 확인하세요. 데모로 화면을 볼 수 있어요.',
-    breath_in:'들이쉬기', breath_out:'내쉬기', demo_tag:'데모'},
+    breath_in:'들이쉬기', breath_out:'내쉬기', demo_tag:'데모',
+    crew:'탑승객', crew_add:'탑승객 사진 추가', crew_hint:'사진은 서버에 올라가지 않고 이 폰에만 저장돼요.',
+    crop_title:'얼굴 맞추기', crop_hint:'끌어서 옮기고, 막대로 크기를 조절하세요.', crop_ok:'태우기', crop_remove:'빼기',
+    card_btn:'여행 사진', card_make:'여행 사진 만들기', share:'공유하기', save:'저장',
+    share_hint:'공유가 안 되면 이미지를 길게 눌러 저장하세요.', card_tag2:'함께 떠나는 중', card_tag1:'떠나는 중'},
   ja:{app:'水平線', intro_desc:'体が感じる傾きを画面の飛行機で見せて、乗り物酔いを和らげます。', dep:'出発', arr:'到着',
     intro_hint:'離陸時は出発地、着陸時は到着地の街が見えます。', start:'センサーをオンにして開始', demo:'デモを見る',
     takeoff:'離陸', cruise:'巡航', landing:'着陸', tips_btn:'酔い対策', zero:'水平を合わせる', breath:'呼吸ガイド', settings:'設定', stop:'停止',
@@ -242,7 +290,11 @@ const I18N = {
     err_denied:'モーションへのアクセスが拒否されました。設定 > Safari で「モーションと画面の向きのアクセス」をオンにして、もう一度お試しください。',
     err_perm:'センサーの許可を要求できませんでした: ',
     err_nosensor:'この端末からジャイロのデータを取得できませんでした。スマホで開いているか確認してください。デモは見られます。',
-    breath_in:'吸って', breath_out:'吐いて', demo_tag:'デモ'},
+    breath_in:'吸って', breath_out:'吐いて', demo_tag:'デモ',
+    crew:'搭乗者', crew_add:'搭乗者の写真を追加', crew_hint:'写真はサーバーに送られず、このスマホにだけ保存されます。',
+    crop_title:'顔の位置を合わせる', crop_hint:'ドラッグで移動、スライダーで大きさを調整します。', crop_ok:'乗せる', crop_remove:'外す',
+    card_btn:'旅の写真', card_make:'旅の写真を作る', share:'共有', save:'保存',
+    share_hint:'共有できない場合は、画像を長押しして保存してください。', card_tag2:'ふたりで出発中', card_tag1:'出発中'},
   en:{app:'Horizon', intro_desc:'Shows the tilt you feel as a plane on screen, so your eyes agree with your inner ear and airsickness eases.', dep:'From', arr:'To',
     intro_hint:'You see your departure city on takeoff and your arrival city on landing.', start:'Turn on sensors', demo:'Watch demo',
     takeoff:'Takeoff', cruise:'Cruise', landing:'Landing', tips_btn:'Tips', zero:'Reset level', breath:'Breathing', settings:'Settings', stop:'Stop',
@@ -266,7 +318,11 @@ const I18N = {
     err_denied:'Motion access was denied. Turn on Motion & Orientation Access in Settings > Safari, then try again.',
     err_perm:'Couldn’t request sensor access: ',
     err_nosensor:'No gyroscope data from this device. Make sure you opened it on a phone. You can still watch the demo.',
-    breath_in:'Breathe in', breath_out:'Breathe out', demo_tag:'Demo'},
+    breath_in:'Breathe in', breath_out:'Breathe out', demo_tag:'Demo',
+    crew:'Passengers', crew_add:'Add passenger photo', crew_hint:'Photos are never uploaded. They stay on this phone.',
+    crop_title:'Fit the face', crop_hint:'Drag to move, use the slider to resize.', crop_ok:'Board', crop_remove:'Remove',
+    card_btn:'Trip photo', card_make:'Make trip photo', share:'Share', save:'Save',
+    share_hint:'If sharing doesn’t work, press and hold the image to save it.', card_tag2:'On our way', card_tag1:'On my way'},
   zh:{app:'地平线', intro_desc:'把身体感受到的倾斜，用屏幕上的飞机显示出来，缓解晕机。', dep:'出发', arr:'到达',
     intro_hint:'起飞时显示出发城市，降落时显示到达城市。', start:'开启传感器并开始', demo:'观看演示',
     takeoff:'起飞', cruise:'巡航', landing:'降落', tips_btn:'防晕技巧', zero:'校准水平', breath:'呼吸引导', settings:'设置', stop:'停止',
@@ -290,7 +346,11 @@ const I18N = {
     err_denied:'动作权限被拒绝。请在“设置 > Safari”中打开“运动与方向访问”，然后重试。',
     err_perm:'无法请求传感器权限：',
     err_nosensor:'无法从此设备获取陀螺仪数据。请确认是在手机上打开的。仍可观看演示。',
-    breath_in:'吸气', breath_out:'呼气', demo_tag:'演示'}
+    breath_in:'吸气', breath_out:'呼气', demo_tag:'演示',
+    crew:'乘客', crew_add:'添加乘客照片', crew_hint:'照片不会上传，只保存在这部手机上。',
+    crop_title:'调整脸部位置', crop_hint:'拖动来移动，用滑块调整大小。', crop_ok:'登机', crop_remove:'移除',
+    card_btn:'旅行照片', card_make:'生成旅行照片', share:'分享', save:'保存',
+    share_hint:'如果无法分享，请长按图片保存。', card_tag2:'一起出发', card_tag1:'出发啦'}
 };
 const CITY_NAMES = {
   ICN:['서울 · 인천','ソウル・仁川','Seoul · Incheon','首尔·仁川'], CJU:['제주','済州','Jeju','济州'],
@@ -312,6 +372,7 @@ function applyLang(){
   $('tipsList').replaceChildren(...L('tips').map(s => { const li = document.createElement('li'); li.textContent = s; return li; }));
   $('phaseSeg').setAttribute('aria-label', L('takeoff') + ' / ' + L('cruise') + ' / ' + L('landing'));
   $('lang').value = $('setLang').value = opt.lang;
+  $('face0').setAttribute('aria-label', L('crew_add') + ' 1'); $('face1').setAttribute('aria-label', L('crew_add') + ' 2');
   fillCities();
 }
 applyLang();
@@ -439,7 +500,7 @@ function showBanner(text){
 }
 
 // ---------- 그리기 ----------
-const cv = $('view'), ctx = cv.getContext('2d');
+const cv = $('view'); let ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1;
 function resize(){
   DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -918,8 +979,8 @@ function spawn(p, anywhere){
 for (let i = 0; i < 110; i++) parts.push(spawn({}, true));
 let chaseLast = 0;
 
-function drawChase(t){
-  const dt = Math.min(0.1, (t - (chaseLast||t))/1000); chaseLast = t;
+function drawChase(t, card){
+  const dt = card ? 0 : Math.min(0.1, (t - (chaseLast||t))/1000); if (!card) chaseLast = t;
   const tod = timeOfDay(), P = PAL[tod], cruise = opt.phase === 'cruise';
   const roll = (S.roll - S.zeroRoll)*D2R, pitch = (S.pitch - S.zeroPitch)*1.5*D2R;
   const cx = W/2, hy = H*0.44, f = Math.min(W*0.95, H*0.6);
@@ -1027,6 +1088,21 @@ function drawChase(t){
   // 수평 꼬리날개, 수직 꼬리날개
   for (const st of [PLANE.stabR, PLANE.stabL]) surf(st, wingHi, wingLo, [0,1]);
   surf(PLANE.fin, mix(P.acc, '#ffffff', 0.1), mix(P.acc, '#141b28', 0.35), [0,1]);
+  // 탑승객 얼굴: 몸통 위에 올라타서 비행기와 같이 기울어짐
+  const crew = faceImgs.filter(Boolean);
+  if (crew.length){
+    const xs = crew.length === 1 ? [0] : [-2.4, 2.4];
+    crew.forEach((img, i) => {
+      const q = tf([xs[i], 3.3, 2.5]), [x, y] = proj(q[0], q[1], q[2]), r = f*2.2/q[2];
+      const sh = tf([xs[i], 1.75, 2.5]), [shx, shy] = proj(sh[0], sh[1], sh[2]);
+      ctx.fillStyle = 'rgba(10,16,28,.35)'; ctx.beginPath(); ctx.ellipse(shx, shy, r*0.9, r*0.32, roll, 0, 7); ctx.fill();
+      ctx.save(); ctx.translate(x, y); ctx.rotate(roll);
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+      ctx.save(); ctx.clip(); ctx.drawImage(img, -r, -r, r*2, r*2); ctx.restore();
+      ctx.lineWidth = Math.max(1.5, r*0.13); ctx.strokeStyle = '#ffffff'; ctx.stroke();
+      ctx.restore();
+    });
+  }
   // 항법등: 오른쪽 날개 초록, 왼쪽 빨강, 꼬리 흰색, 날개 끝 섬광
   const navLight = (v, col, r) => {
     const q = tf(v), [x, y] = proj(q[0], q[1], q[2]);
@@ -1043,7 +1119,7 @@ function drawChase(t){
   if (t % 1300 < 90){ navLight([16.3,1,-5.2], 'rgba(255,255,255,1)', 6); navLight([-16.3,1,-5.2], 'rgba(255,255,255,1)', 6); }
   near.forEach(drawPart);
 
-  drawGauges(t, cx, hy + f*CAM.y/(-CAM.z), S.roll - S.zeroRoll);
+  if (!card) drawGauges(t, cx, hy + f*CAM.y/(-CAM.z), S.roll - S.zeroRoll);
 }
 
 // 기울기 눈금 + 호흡 가이드 (두 시점 공통). pointer: 눈금 바늘이 가리킬 기울기
@@ -1208,6 +1284,131 @@ $('setLang').addEventListener('change', e => setLang(e.target.value));
 addEventListener('resize', () => { if (!running) draw(0); });
 $('tod').addEventListener('change', e => { opt.tod = e.target.value; store.set('tod', opt.tod); lastHud = 0; if (!running) draw(0); });
 $('optBanner').addEventListener('change', e => { opt.banner = e.target.checked; store.set('banner', opt.banner); });
+
+// ---------- 탑승객 사진 (이 폰의 브라우저 저장소에만 보관) ----------
+const faceImgs = [null, null];
+function loadFace(i){
+  const src = store.get('face' + i, null);
+  faceImgs[i] = null;
+  if (src){ const im = new Image(); im.onload = () => { faceImgs[i] = im; if (!running) draw(0); }; im.src = src; }
+  const btn = $('face' + i), img = btn.querySelector('img');
+  btn.classList.toggle('on', !!src); img.hidden = !src; btn.querySelector('span').hidden = !!src;
+  if (src) img.src = src;
+}
+loadFace(0); loadFace(1);
+
+let cropSlot = 0, cropImg = null, cropURL = null;
+const crop = {x:0, y:0, z:1};
+for (const i of [0, 1]) $('face' + i).addEventListener('click', () => { cropSlot = i; $('facePick').value = ''; $('facePick').click(); });
+$('facePick').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0]; if (!file) return;
+  if (cropURL) URL.revokeObjectURL(cropURL);
+  cropURL = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => { cropImg = im; crop.x = 0; crop.y = 0; crop.z = 1; $('cropZoom').value = 1; $('cropSheet').hidden = false; drawCrop(); };
+  im.src = cropURL;
+});
+// 사진을 정사각 캔버스에 그림 (size: 출력 크기)
+function paintCrop(g, size){
+  const s = size / Math.min(cropImg.width, cropImg.height) * crop.z, k = size / 520;
+  g.drawImage(cropImg, size/2 - cropImg.width*s/2 + crop.x*k, size/2 - cropImg.height*s/2 + crop.y*k, cropImg.width*s, cropImg.height*s);
+}
+function drawCrop(){
+  const c = $('cropCv'), g = c.getContext('2d');
+  g.clearRect(0, 0, 520, 520); paintCrop(g, 520);
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.rect(0, 0, 520, 520); g.arc(260, 260, 236, 0, Math.PI*2); g.fill('evenodd');
+  g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.beginPath(); g.arc(260, 260, 236, 0, Math.PI*2); g.stroke();
+}
+let dragFrom = null;
+$('cropCv').addEventListener('pointerdown', e => { dragFrom = [e.clientX, e.clientY]; $('cropCv').setPointerCapture(e.pointerId); });
+$('cropCv').addEventListener('pointermove', e => {
+  if (!dragFrom || !cropImg) return;
+  const k = 520 / $('cropCv').getBoundingClientRect().width;
+  crop.x += (e.clientX - dragFrom[0])*k; crop.y += (e.clientY - dragFrom[1])*k; dragFrom = [e.clientX, e.clientY]; drawCrop();
+});
+$('cropCv').addEventListener('pointerup', () => dragFrom = null);
+$('cropCv').addEventListener('pointercancel', () => dragFrom = null);
+$('cropZoom').addEventListener('input', e => { crop.z = +e.target.value; if (cropImg) drawCrop(); });
+$('cropOk').addEventListener('click', () => {
+  if (cropImg){
+    const out = document.createElement('canvas'); out.width = out.height = 256;
+    const g = out.getContext('2d'); g.scale(256/472, 256/472); g.translate(-24, -24); paintCrop(g, 520);
+    store.set('face' + cropSlot, out.toDataURL('image/jpeg', 0.85));
+  }
+  $('cropSheet').hidden = true; loadFace(cropSlot);
+});
+$('cropRemove').addEventListener('click', () => { store.set('face' + cropSlot, null); $('cropSheet').hidden = true; loadFace(cropSlot); });
+
+// ---------- 여행 사진 카드 (4:5 세로, 인스타그램 비율) ----------
+function makeCard(){
+  const CW = 540, CHh = 675, CD = 2;
+  const card = document.createElement('canvas'); card.width = CW*CD; card.height = CHh*CD;
+  const saved = {ctx, W, H, DPR, phase: opt.phase, roll: S.roll, zr: S.zeroRoll, heading: S.heading, camz: CAM.z};
+  try{
+    ctx = card.getContext('2d'); W = CW; H = CHh; DPR = CD; ctx.setTransform(CD,0,0,CD,0,0);
+    opt.phase = 'landing'; S.roll = 9; S.zeroRoll = 0; S.heading = 0; CAM.z = -33;
+    drawChase(performance.now(), true);
+  } finally {
+    ctx = saved.ctx; W = saved.W; H = saved.H; DPR = saved.DPR; CAM.z = saved.camz;
+    opt.phase = saved.phase; S.roll = saved.roll; S.zeroRoll = saved.zr; S.heading = saved.heading;
+  }
+  const g = card.getContext('2d'); g.setTransform(CD,0,0,CD,0,0);
+  const font = getComputedStyle(document.body).fontFamily;
+  // 위: 노선
+  let gr = g.createLinearGradient(0, 0, 0, 250);
+  gr.addColorStop(0, 'rgba(5,9,16,.82)'); gr.addColorStop(1, 'rgba(5,9,16,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, CW, 250);
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = '#f2c14e'; g.font = `700 16px ${font}`; g.textAlign = 'center';
+  g.fillText(L(faceImgs.filter(Boolean).length > 1 ? 'card_tag2' : 'card_tag1'), CW/2, 52);
+  g.fillStyle = '#ffffff'; g.font = `800 58px ${font}`;
+  g.textAlign = 'left'; g.fillText(opt.dep, 36, 118);
+  g.textAlign = 'right'; g.fillText(opt.arr, CW - 36, 118);
+  // 가운데 점선과 비행기
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2; g.setLineDash([5, 7]);
+  g.beginPath(); g.moveTo(182, 99); g.lineTo(CW - 182, 99); g.stroke(); g.setLineDash([]);
+  g.save(); g.translate(CW/2, 99); g.fillStyle = '#f2c14e';
+  g.beginPath(); g.moveTo(16, 0); g.lineTo(-10, -4); g.lineTo(-14, -16); g.lineTo(-19, -16); g.lineTo(-16, -3); g.lineTo(-16, 3);
+  g.lineTo(-19, 16); g.lineTo(-14, 16); g.lineTo(-10, 4); g.closePath(); g.fill();
+  g.beginPath(); g.ellipse(0, 0, 17, 3.4, 0, 0, Math.PI*2); g.fill(); g.restore();
+  g.fillStyle = '#d5deea'; g.font = `600 17px ${font}`;
+  g.textAlign = 'left'; g.fillText(cityName(opt.dep), 38, 148);
+  g.textAlign = 'right'; g.fillText(cityName(opt.arr), CW - 38, 148);
+  const locale = {ko:'ko-KR', ja:'ja-JP', en:'en-US', zh:'zh-CN'}[opt.lang];
+  g.fillStyle = 'rgba(213,222,234,.8)'; g.font = `500 14px ${font}`; g.textAlign = 'center';
+  g.fillText(new Date().toLocaleDateString(locale, {year:'numeric', month:'long', day:'numeric'}), CW/2, 182);
+  // 아래: 앱 이름
+  gr = g.createLinearGradient(0, CHh - 110, 0, CHh);
+  gr.addColorStop(0, 'rgba(5,9,16,0)'); gr.addColorStop(1, 'rgba(5,9,16,.8)');
+  g.fillStyle = gr; g.fillRect(0, CHh - 110, CW, 110);
+  g.textAlign = 'left'; g.fillStyle = '#ffffff'; g.font = `800 20px ${font}`; g.fillText(L('app'), 28, CHh - 38);
+  g.fillStyle = 'rgba(213,222,234,.75)'; g.font = `500 12px ${font}`; g.fillText('cho-daehan.github.io/airsick-horizon', 28, CHh - 18);
+  return card;
+}
+let cardFile = null, cardURL = null;
+async function openCard(){
+  const card = makeCard();
+  if (!running) draw(0);
+  const blob = await new Promise(r => card.toBlob(r, 'image/jpeg', 0.92));
+  if (!blob) return;
+  if (cardURL) URL.revokeObjectURL(cardURL);
+  cardURL = URL.createObjectURL(blob);
+  cardFile = new File([blob], `horizon-${opt.dep}-${opt.arr}.jpg`, {type:'image/jpeg'});
+  $('shareImg').src = cardURL; $('shareImg').alt = `${cityName(opt.dep)} → ${cityName(opt.arr)}`;
+  $('shareSheet').hidden = false;
+}
+const saveCard = () => { const a = document.createElement('a'); a.href = cardURL; a.download = cardFile.name; document.body.appendChild(a); a.click(); a.remove(); };
+$('btnCard').addEventListener('click', openCard);
+$('btnCard2').addEventListener('click', openCard);
+$('shareSave').addEventListener('click', saveCard);
+$('shareGo').addEventListener('click', async () => {
+  const text = `${cityName(opt.dep)} → ${cityName(opt.arr)} ✈ ${L('app')}`;
+  if (navigator.canShare && navigator.canShare({files:[cardFile]})){
+    try{ await navigator.share({files:[cardFile], text}); }catch(e){}
+  } else saveCard();
+});
+$('shareClose').addEventListener('click', () => $('shareSheet').hidden = true);
+for (const id of ['shareSheet']) $(id).addEventListener('click', e => { if (e.target.id === id) $(id).hidden = true; });
 
 // 시작 화면 뒤에 출발 도시 그려두기
 draw(0);
