@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- D. 스마일 수평선: 수평선이 웃는 입이 되는 미니멀 마크 -->
+  <defs><clipPath id="disc"><circle cx="512" cy="512" r="380"/></clipPath></defs>
+  <rect width="1024" height="1024" fill="#13233D"/>
+  <g clip-path="url(#disc)">
+    <rect x="100" y="100" width="824" height="824" fill="#8CC8FF"/>
+    <circle cx="690" cy="330" r="70" fill="#FFE08A"/>
+    <path d="M100 520 Q512 820 924 520 L924 924 L100 924 Z" fill="#2D6FB0"/>
+    <path d="M100 520 Q512 820 924 520" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+    <g transform="translate(380 360) scale(5.2)" fill="#FFFFFF">
+      <path d="M16 0 L-10 -4 L-14 -16 L-19 -16 L-16 -3 L-16 3 L-19 16 L-14 16 L-10 4 Z"/>
+      <ellipse cx="0" cy="0" rx="17" ry="3.4"/>
+    </g>
+  </g>
+</svg>

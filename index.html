@@ -1445,7 +1445,7 @@ function makeQR(text, forceMask){
   applyMask(best); drawFormat(best);
   return {size, version: ver, mask: best, dark: (x, y) => M[y][x]};
 }
-const appIcon = new Image(); appIcon.src = 'icon.svg';
+const appIcon = new Image(); appIcon.src = 'icon-card.svg';   // 어질 비행기 + FLY WITH ME
 
 // ---------- 여행 사진 카드 (4:5 세로, 인스타그램 비율) ----------
 function makeCard(){
@@ -1485,21 +1485,23 @@ function makeCard(){
   const locale = {ko:'ko-KR', ja:'ja-JP', en:'en-US', zh:'zh-CN'}[opt.lang];
   g.fillStyle = 'rgba(213,222,234,.8)'; g.font = `500 14px ${font}`; g.textAlign = 'center';
   g.fillText(new Date().toLocaleDateString(locale, {year:'numeric', month:'long', day:'numeric'}), CW/2, 182);
-  // 아래: 앱 아이콘(왼쪽) + QR 코드(오른쪽, APP_URL로 연결)
+  // 아래 오른쪽: 앱 아이콘 + QR 코드를 같은 크기로 나란히 (QR은 APP_URL로 연결)
   gr = g.createLinearGradient(0, CHh - 160, 0, CHh);
   gr.addColorStop(0, 'rgba(5,9,16,0)'); gr.addColorStop(1, 'rgba(5,9,16,.7)');
   g.fillStyle = gr; g.fillRect(0, CHh - 160, CW, 160);
   const q = makeQR(APP_URL), quiet = 3;
   const m = Math.max(2, Math.floor(108 / (q.size + quiet*2) * 2) / 2), tile = m*(q.size + quiet*2);
   const qx = CW - 24 - tile, qy = CHh - 24 - tile;
-  g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(qx, qy, tile, tile, 10); g.fill();
+  const rad = tile*0.18;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 10;
+  g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(qx, qy, tile, tile, rad); g.fill(); g.restore();
   g.fillStyle = '#0b1220';
   for (let y = 0; y < q.size; y++) for (let x = 0; x < q.size; x++) if (q.dark(x, y)) g.fillRect(qx + (x + quiet)*m, qy + (y + quiet)*m, m, m);
   if (appIcon.complete && appIcon.naturalWidth){
-    const is = 64, ix = 24, iy = CHh - 24 - is;
-    g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 10;
-    g.beginPath(); g.roundRect(ix, iy, is, is, 15); g.fillStyle = '#0b1220'; g.fill(); g.restore();
-    g.save(); g.beginPath(); g.roundRect(ix, iy, is, is, 15); g.clip(); g.drawImage(appIcon, ix, iy, is, is); g.restore();
+    const is = tile, ix = qx - 12 - is, iy = qy;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 10;
+    g.beginPath(); g.roundRect(ix, iy, is, is, rad); g.fillStyle = '#6FB6F2'; g.fill(); g.restore();
+    g.save(); g.beginPath(); g.roundRect(ix, iy, is, is, rad); g.clip(); g.drawImage(appIcon, ix, iy, is, is); g.restore();
   }
   return card;
 }

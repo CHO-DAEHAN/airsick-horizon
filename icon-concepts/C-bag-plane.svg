@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- C. 멀미봉투 비행기: 날개 달고 웃으며 날아가는 멀미봉투 -->
+  <rect width="1024" height="1024" fill="#FFC84A"/>
+  <path d="M120 470 h120 M90 545 h170 M140 620 h110" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" opacity=".85"/>
+  <g transform="rotate(-8 540 560)">
+    <path d="M380 560 L210 650 Q196 662 212 674 L380 640 Z" fill="#FFFFFF" stroke="#E3D7BF" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M700 560 L870 650 Q884 662 868 674 L700 640 Z" fill="#FFFFFF" stroke="#E3D7BF" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M380 330 L400 300 L420 330 L440 300 L460 330 L480 300 L500 330 L520 300 L540 330 L560 300 L580 330 L600 300 L620 330 L640 300 L660 330 L680 300 L700 330 L712 760 Q712 790 682 790 L398 790 Q368 790 368 760 Z" fill="#FFFCF4" stroke="#E3D7BF" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M375 400 L705 400" stroke="#E3D7BF" stroke-width="8"/>
+    <path d="M450 560 q30 -36 60 0 M570 560 q30 -36 60 0" fill="none" stroke="#3B3B3B" stroke-width="16" stroke-linecap="round"/>
+    <ellipse cx="452" cy="618" rx="26" ry="15" fill="#FF9E8F"/>
+    <ellipse cx="628" cy="618" rx="26" ry="15" fill="#FF9E8F"/>
+    <path d="M510 640 q30 26 60 0" fill="none" stroke="#3B3B3B" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>

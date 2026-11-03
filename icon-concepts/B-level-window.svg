@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- B. 수평계 창문: 창밖 세상은 기울어도 수평계 기포는 가운데 -->
+  <defs><clipPath id="win"><rect x="282" y="182" width="460" height="660" rx="230"/></clipPath></defs>
+  <rect width="1024" height="1024" fill="#13233D"/>
+  <rect x="232" y="132" width="560" height="760" rx="280" fill="#EDE6D8"/>
+  <g clip-path="url(#win)">
+    <g transform="rotate(-16 512 512)">
+      <rect x="-200" y="-300" width="1424" height="812" fill="#7CC0F5"/>
+      <rect x="-200" y="512" width="1424" height="812" fill="#2E6CA8"/>
+      <rect x="-200" y="506" width="1424" height="12" fill="#FFFFFF"/>
+      <ellipse cx="400" cy="330" rx="74" ry="26" fill="#FFFFFF" opacity=".75"/>
+      <ellipse cx="640" cy="270" rx="50" ry="18" fill="#FFFFFF" opacity=".6"/>
+    </g>
+  </g>
+  <rect x="282" y="182" width="460" height="660" rx="230" fill="none" stroke="#C9BFAA" stroke-width="10"/>
+  <rect x="312" y="470" width="400" height="88" rx="44" fill="#F2C14E" stroke="#FFFFFF" stroke-width="10"/>
+  <line x1="456" y1="484" x2="456" y2="544" stroke="#8A5A00" stroke-width="8" stroke-linecap="round"/>
+  <line x1="568" y1="484" x2="568" y2="544" stroke="#8A5A00" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="512" cy="514" rx="42" ry="26" fill="#FFFDF2"/>
+</svg>
