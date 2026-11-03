@@ -57,7 +57,7 @@ button[aria-pressed="true"]{background:rgba(242,193,78,.22);border-color:var(--l
 .seg button[aria-pressed="true"]{background:var(--line);color:#1b1404}
 
 /* 시트 */
-.sheet{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,9,16,.6);z-index:5}
+.sheet{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,9,16,.6);z-index:7}
 .sheet .card{width:100%;max-width:520px;max-height:88%;overflow:auto;background:#121b2d;border-radius:20px 20px 0 0;
   padding:22px max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 22px) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
 .sheet h2{margin:0;font-size:20px}
@@ -221,6 +221,8 @@ input[type=range]{width:100%;accent-color:var(--line)}
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
+// 앱 주소: 도메인이 바뀌면 이 줄만 고치면 여행 사진의 QR 코드와 공유 문구가 같이 바뀜
+const APP_URL = 'https://cho-daehan.github.io/airsick-horizon/';
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
 
 // ---------- 설정 저장 ----------
@@ -513,6 +515,7 @@ addEventListener('resize', resize); resize();
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function draw(t){
+  if (W < 2 || H < 2) return;   // 화면 크기가 아직 0이면(백그라운드로 열림 등) 건너뜀
   drawChase(t);
 }
 
@@ -1339,6 +1342,111 @@ $('cropOk').addEventListener('click', () => {
 });
 $('cropRemove').addEventListener('click', () => { store.set('face' + cropSlot, null); $('cropSheet').hidden = true; loadFace(cropSlot); });
 
+// ---------- QR 코드 (오프라인에서도 만들 수 있게 직접 생성: 바이트 모드, 오류 정정 M, 버전 1~10) ----------
+function makeQR(text, forceMask){
+  const ECC = [0,10,16,26,18,24,16,18,22,22,26], BLOCKS = [0,1,1,1,2,2,4,4,4,5,5];
+  const bytes = Array.from(new TextEncoder().encode(text));
+  const rawModules = v => { let r = (16*v + 128)*v + 64; if (v >= 2){ const n = Math.floor(v/7) + 2; r -= (25*n - 10)*n - 55; if (v >= 7) r -= 36; } return r; };
+  const dataCap = v => Math.floor(rawModules(v)/8) - ECC[v]*BLOCKS[v];
+  let ver = 1;
+  while (ver <= 10 && 4 + (ver < 10 ? 8 : 16) + bytes.length*8 > dataCap(ver)*8) ver++;
+  if (ver > 10) throw new Error('QR text too long');
+  const size = ver*4 + 17;
+
+  // 데이터 비트: 모드(0100) + 길이 + 내용 + 종료 + 채움
+  const bits = [];
+  const put = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+  put(4, 4); put(bytes.length, ver < 10 ? 8 : 16); for (const b of bytes) put(b, 8);
+  const cap = dataCap(ver)*8;
+  put(0, Math.min(4, cap - bits.length)); put(0, (8 - bits.length % 8) % 8);
+  for (let pad = 0xEC; bits.length < cap; pad ^= 0xEC ^ 0x11) put(pad, 8);
+  const data = []; for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i+8).join(''), 2));
+
+  // 리드-솔로몬 오류 정정
+  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--){ z = (z << 1) ^ ((z >>> 7)*0x11D); z ^= ((y >>> i) & 1)*x; } return z & 0xFF; };
+  const eccLen = ECC[ver], nb = BLOCKS[ver];
+  const div = new Array(eccLen).fill(0); div[eccLen-1] = 1;
+  for (let i = 0, root = 1; i < eccLen; i++){ for (let j = 0; j < eccLen; j++){ div[j] = mul(div[j], root); if (j + 1 < eccLen) div[j] ^= div[j+1]; } root = mul(root, 2); }
+  const rem = d => { const r = new Array(eccLen).fill(0); for (const b of d){ const f = b ^ r.shift(); r.push(0); for (let i = 0; i < eccLen; i++) r[i] ^= mul(div[i], f); } return r; };
+  const raw = Math.floor(rawModules(ver)/8), nShort = nb - raw % nb, shortLen = Math.floor(raw/nb);
+  const blocks = [];
+  for (let i = 0, k = 0; i < nb; i++){
+    const dat = data.slice(k, k + shortLen - eccLen + (i < nShort ? 0 : 1)); k += dat.length;
+    const ecc = rem(dat); if (i < nShort) dat.push(0);
+    blocks.push(dat.concat(ecc));
+  }
+  const code = [];
+  for (let i = 0; i < blocks[0].length; i++) for (let j = 0; j < nb; j++) if (i !== shortLen - eccLen || j >= nShort) code.push(blocks[j][i]);
+
+  // 기능 패턴
+  const M = [], F = [];
+  for (let y = 0; y < size; y++){ M.push(new Array(size).fill(false)); F.push(new Array(size).fill(false)); }
+  const setF = (x, y, d) => { M[y][x] = d; F[y][x] = true; };
+  for (let i = 0; i < size; i++){ setF(6, i, i % 2 === 0); setF(i, 6, i % 2 === 0); }
+  for (const [cx, cy] of [[3,3],[size-4,3],[3,size-4]])
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++){
+      const x = cx + dx, y = cy + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
+      if (x >= 0 && x < size && y >= 0 && y < size) setF(x, y, d !== 2 && d !== 4);
+    }
+  const align = [];
+  if (ver > 1){
+    const n = Math.floor(ver/7) + 2, step = Math.ceil((ver*4 + 4)/(n*2 - 2))*2;
+    align.push(6); for (let pos = size - 7; align.length < n; pos -= step) align.splice(1, 0, pos);
+  }
+  for (let i = 0; i < align.length; i++) for (let j = 0; j < align.length; j++){
+    if ((i === 0 && j === 0) || (i === 0 && j === align.length-1) || (i === align.length-1 && j === 0)) continue;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) setF(align[i]+dx, align[j]+dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+  }
+  const drawFormat = mask => {
+    const d = (0 << 3) | mask;                // 오류 정정 M = 00
+    let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9)*0x537);
+    const b = ((d << 10) | r) ^ 0x5412, bit = i => ((b >>> i) & 1) !== 0;
+    for (let i = 0; i <= 5; i++) setF(8, i, bit(i));
+    setF(8, 7, bit(6)); setF(8, 8, bit(7)); setF(7, 8, bit(8));
+    for (let i = 9; i < 15; i++) setF(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) setF(size - 1 - i, 8, bit(i));
+    for (let i = 8; i < 15; i++) setF(8, size - 15 + i, bit(i));
+    setF(8, size - 8, true);
+  };
+  drawFormat(0);
+  if (ver >= 7){
+    let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11)*0x1F25);
+    const b = (ver << 12) | r;
+    for (let i = 0; i < 18; i++){ const d = ((b >>> i) & 1) !== 0, a = size - 11 + i % 3, c = Math.floor(i/3); setF(a, c, d); setF(c, a, d); }
+  }
+  // 데이터 배치 (지그재그)
+  let k = 0;
+  for (let right = size - 1; right >= 1; right -= 2){
+    if (right === 6) right = 5;
+    for (let v = 0; v < size; v++) for (let j = 0; j < 2; j++){
+      const x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - v : v;
+      if (!F[y][x] && k < code.length*8){ M[y][x] = ((code[k >>> 3] >>> (7 - (k & 7))) & 1) !== 0; k++; }
+    }
+  }
+  // 마스크: 8가지 중 벌점이 가장 낮은 것
+  const maskFn = [(x,y)=>(x+y)%2===0, (x,y)=>y%2===0, (x,y)=>x%3===0, (x,y)=>(x+y)%3===0,
+    (x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0, (x,y)=>x*y%2+x*y%3===0, (x,y)=>(x*y%2+x*y%3)%2===0, (x,y)=>((x+y)%2+x*y%3)%2===0];
+  const applyMask = m => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!F[y][x] && maskFn[m](x, y)) M[y][x] = !M[y][x]; };
+  const penalty = () => {
+    let p = 0, dark = 0;
+    for (let a = 0; a < 2; a++) for (let i = 0; i < size; i++){
+      let run = 1;
+      for (let j = 1; j <= size; j++){
+        const cur = j < size && (a ? M[j][i] : M[i][j]), prev = a ? M[j-1][i] : M[i][j-1];
+        if (j < size && cur === prev) run++; else { if (run >= 5) p += run - 2; run = 1; }
+      }
+    }
+    for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++){ const c = M[y][x]; if (c === M[y][x+1] && c === M[y+1][x] && c === M[y+1][x+1]) p += 3; }
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (M[y][x]) dark++;
+    return p + Math.floor(Math.abs(dark*20 - size*size*10) / (size*size)) * 10;
+  };
+  let best = forceMask, bestP = Infinity;
+  if (best === undefined) for (let m = 0; m < 8; m++){ applyMask(m); drawFormat(m); const s = penalty(); if (s < bestP){ bestP = s; best = m; } applyMask(m); }
+  applyMask(best); drawFormat(best);
+  return {size, version: ver, mask: best, dark: (x, y) => M[y][x]};
+}
+const appIcon = new Image(); appIcon.src = 'icon.svg';
+
 // ---------- 여행 사진 카드 (4:5 세로, 인스타그램 비율) ----------
 function makeCard(){
   const CW = 540, CHh = 675, CD = 2;
@@ -1377,12 +1485,22 @@ function makeCard(){
   const locale = {ko:'ko-KR', ja:'ja-JP', en:'en-US', zh:'zh-CN'}[opt.lang];
   g.fillStyle = 'rgba(213,222,234,.8)'; g.font = `500 14px ${font}`; g.textAlign = 'center';
   g.fillText(new Date().toLocaleDateString(locale, {year:'numeric', month:'long', day:'numeric'}), CW/2, 182);
-  // 아래: 앱 이름
-  gr = g.createLinearGradient(0, CHh - 110, 0, CHh);
-  gr.addColorStop(0, 'rgba(5,9,16,0)'); gr.addColorStop(1, 'rgba(5,9,16,.8)');
-  g.fillStyle = gr; g.fillRect(0, CHh - 110, CW, 110);
-  g.textAlign = 'left'; g.fillStyle = '#ffffff'; g.font = `800 20px ${font}`; g.fillText(L('app'), 28, CHh - 38);
-  g.fillStyle = 'rgba(213,222,234,.75)'; g.font = `500 12px ${font}`; g.fillText('cho-daehan.github.io/airsick-horizon', 28, CHh - 18);
+  // 아래: 앱 아이콘(왼쪽) + QR 코드(오른쪽, APP_URL로 연결)
+  gr = g.createLinearGradient(0, CHh - 160, 0, CHh);
+  gr.addColorStop(0, 'rgba(5,9,16,0)'); gr.addColorStop(1, 'rgba(5,9,16,.7)');
+  g.fillStyle = gr; g.fillRect(0, CHh - 160, CW, 160);
+  const q = makeQR(APP_URL), quiet = 3;
+  const m = Math.max(2, Math.floor(108 / (q.size + quiet*2) * 2) / 2), tile = m*(q.size + quiet*2);
+  const qx = CW - 24 - tile, qy = CHh - 24 - tile;
+  g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(qx, qy, tile, tile, 10); g.fill();
+  g.fillStyle = '#0b1220';
+  for (let y = 0; y < q.size; y++) for (let x = 0; x < q.size; x++) if (q.dark(x, y)) g.fillRect(qx + (x + quiet)*m, qy + (y + quiet)*m, m, m);
+  if (appIcon.complete && appIcon.naturalWidth){
+    const is = 64, ix = 24, iy = CHh - 24 - is;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 10;
+    g.beginPath(); g.roundRect(ix, iy, is, is, 15); g.fillStyle = '#0b1220'; g.fill(); g.restore();
+    g.save(); g.beginPath(); g.roundRect(ix, iy, is, is, 15); g.clip(); g.drawImage(appIcon, ix, iy, is, is); g.restore();
+  }
   return card;
 }
 let cardFile = null, cardURL = null;
@@ -1402,7 +1520,7 @@ $('btnCard').addEventListener('click', openCard);
 $('btnCard2').addEventListener('click', openCard);
 $('shareSave').addEventListener('click', saveCard);
 $('shareGo').addEventListener('click', async () => {
-  const text = `${cityName(opt.dep)} → ${cityName(opt.arr)} ✈ ${L('app')}`;
+  const text = `${cityName(opt.dep)} → ${cityName(opt.arr)} ✈ ${L('app')} ${APP_URL}`;
   if (navigator.canShare && navigator.canShare({files:[cardFile]})){
     try{ await navigator.share({files:[cardFile], text}); }catch(e){}
   } else saveCard();
