@@ -99,6 +99,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <div class="breath" id="breathText" hidden></div>
 
 <div class="bar" id="bar" hidden>
+  <button id="btnView">조종석 시점</button>
   <button id="btnZero">영점 맞추기</button>
   <button id="btnBreath" aria-pressed="false">호흡 가이드</button>
   <button id="btnTips">멀미 팁</button>
@@ -109,7 +110,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <section class="intro" id="intro">
   <div class="box">
     <h1>수평선</h1>
-    <p>비행기가 기울거나 흔들리는 걸 폰 센서로 감지해서, 화면에 진짜 수평선과 움직임 점을 보여줘요. 귀가 느끼는 움직임과 눈이 보는 화면을 맞춰서 멀미를 줄이는 방식이에요.</p>
+    <p>비행기가 기울거나 흔들리는 걸 폰 센서로 감지해서, 뒤에서 바라본 비행기가 똑같이 기울고 흔들리는 모습을 보여줘요. 몸이 느끼는 움직임을 눈으로도 보게 해서 멀미를 줄이는 방식이에요.</p>
     <p>폰을 세워 들거나 트레이 테이블에 두고, 기울어지기 전에 영점을 맞춰 주세요.</p>
     <div class="btns">
       <button class="primary" id="btnStart">센서 켜고 시작</button>
@@ -164,7 +165,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('horizon.'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('horizon.'+k, JSON.stringify(v)); }catch(e){} }
 };
-const opt = { speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
+const opt = { view: store.get('view', 'chase'), speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
 $('phase').value = String(opt.speed);
 $('optVibe').checked = opt.vibe;
 $('optBanner').checked = opt.banner;
@@ -283,8 +284,8 @@ function checkAlert(){
     alertCool = now + 12000;
     const roll = S.roll - S.zeroRoll;
     const leveling = Math.abs(roll) > 3 && Math.sign(roll) !== Math.sign(S.rollRate);
-    const msg = leveling ? '수평으로 돌아오는 중이에요. 화면의 수평선을 보세요.'
-      : (S.rollRate > 0 ? '오른쪽' : '왼쪽') + '으로 기울어지는 중이에요. 화면의 수평선을 보세요.';
+    const look = opt.view === 'chase' ? ' 화면 속 비행기를 보세요.' : ' 화면의 수평선을 보세요.';
+    const msg = (leveling ? '수평으로 돌아오는 중이에요.' : (S.rollRate > 0 ? '오른쪽' : '왼쪽') + '으로 기울어지는 중이에요.') + look;
     if (opt.banner) showBanner(msg);
     if (opt.vibe && navigator.vibrate) try{ navigator.vibrate([60,80,60]); }catch(e){}
   }
@@ -308,6 +309,135 @@ addEventListener('resize', resize); resize();
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function draw(t){
+  if (opt.view === 'chase') drawChase(t); else drawCockpit(t);
+}
+
+// ---------- 3인칭 시점: 뒤에서 따라가며 비행기를 바라봄 ----------
+// 좌표: x 오른쪽, y 위, z 앞(기수 방향). 비행기 원점 기준.
+const PLANE = (() => {
+  const P = [], body = '#e9eef5', wingC = '#b8c3d1', eng = '#7f8c9e', acc = '#f2c14e';
+  const zs = [-15,-11,-6,0,6,11,15,17.5], rs = [0.6,1.3,1.75,1.8,1.8,1.6,1.1,0.4];
+  for (let i = 0; i < zs.length-1; i++) P.push({k:'seg', a:[0,0,zs[i]], b:[0,0,zs[i+1]], r:(rs[i]+rs[i+1])/2, c:body});
+  for (const s of [1,-1]){
+    P.push({k:'poly', c:wingC, pts:[[1.5*s,-0.6,4],[16*s,0.9,-4],[16*s,0.9,-5.6],[1.5*s,-0.6,-2.5]]});
+    P.push({k:'poly', c:acc,   pts:[[16*s,0.9,-4],[16.4*s,2.7,-5.7],[16.4*s,2.7,-6.4],[16*s,0.9,-5.6]]});
+    P.push({k:'seg',  c:eng,   a:[6*s,-1.7,4.5], b:[6*s,-1.7,0.5], r:0.95});
+    P.push({k:'poly', c:wingC, pts:[[1*s,0.3,-11],[6*s,0.9,-14.4],[6*s,0.9,-15.3],[1*s,0.3,-13.6]]});
+  }
+  P.push({k:'poly', c:acc, pts:[[0,1.2,-10],[0,6.6,-14.4],[0,6.6,-15.9],[0,1.2,-15]]});
+  return P;
+})();
+const CAM = {y:9, z:-42};
+const parts = [];
+function spawn(p, anywhere){
+  p.g = Math.random() < 0.45;                       // 땅 위 점 / 구름
+  p.x = (Math.random()*2-1) * 260;
+  p.y = p.g ? -60 : (Math.random()*40 - 16);
+  p.z = anywhere ? 20 + Math.random()*420 : 440;
+  p.s = p.g ? 0.8 : 5 + Math.random()*7;
+  return p;
+}
+for (let i = 0; i < 70; i++) parts.push(spawn({}, true));
+let chaseLast = 0;
+
+function drawChase(t){
+  const dt = Math.min(0.1, (t - (chaseLast||t))/1000); chaseLast = t;
+  const roll = (S.roll - S.zeroRoll)*D2R, pitch = (S.pitch - S.zeroPitch)*1.5*D2R;
+  const cx = W/2, hy = H*0.44, f = Math.min(W*0.95, H*0.6);
+
+  // 하늘 / 땅 (수평선은 고정)
+  let g = ctx.createLinearGradient(0,0,0,hy);
+  g.addColorStop(0,'#0e1c33'); g.addColorStop(1,'#4b7cab');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,hy);
+  g = ctx.createLinearGradient(0,hy,0,H);
+  g.addColorStop(0,'#4a3b29'); g.addColorStop(1,'#120e0a');
+  ctx.fillStyle = g; ctx.fillRect(0,hy,W,H-hy);
+  ctx.fillStyle = 'rgba(242,193,78,.7)'; ctx.fillRect(0,hy-1,W,2);
+
+  // 구름·땅 점 이동: 앞으로 날아가는 속도 + 선회하면 옆으로 흐름
+  const th = S.yaw*dt*D2R, c = Math.cos(th), s = Math.sin(th), sp = 70*dt;
+  for (const p of parts){
+    const x = p.x*c + p.z*s, z = -p.x*s + p.z*c;
+    p.x = x; p.z = z - sp;
+    if (p.z < 4 || Math.abs(p.x) > p.z*1.6 + 60) spawn(p, false);
+  }
+  const proj = (x,y,z) => [cx + f*x/z, hy - f*y/z];
+  const drawPart = p => {
+    const [sx, sy] = proj(p.x, p.y - CAM.y, p.z);
+    const fade = Math.min(1, (440 - p.z)/120) * Math.min(1, p.z/30);
+    const r = f*p.s/p.z;
+    if (p.g){ ctx.fillStyle = `rgba(255,214,150,${0.45*fade})`; ctx.beginPath(); ctx.arc(sx,sy,Math.max(1,r),0,7); ctx.fill(); }
+    else {
+      ctx.fillStyle = `rgba(235,242,250,${0.22*fade})`;
+      ctx.beginPath(); ctx.arc(sx,sy,r,0,7); ctx.arc(sx+r*0.9,sy+r*0.25,r*0.7,0,7); ctx.arc(sx-r*0.9,sy+r*0.3,r*0.6,0,7); ctx.fill();
+    }
+  };
+  const far = parts.filter(p => p.z > -CAM.z).sort((a,b) => b.z - a.z);
+  const near = parts.filter(p => p.z <= -CAM.z).sort((a,b) => b.z - a.z);
+  far.forEach(drawPart);
+
+  // 비행기: 롤 → 피치 회전 후 원근 투영, 먼 부품부터 그림
+  const cr = Math.cos(roll), sr = Math.sin(roll), cp = Math.cos(pitch), sp2 = Math.sin(pitch);
+  const bobY = S.bob*0.03 + (reduceMotion ? 0 : Math.sin(t/900)*0.15);
+  const tf = v => {
+    let x = v[0]*cr + v[1]*sr, y = -v[0]*sr + v[1]*cr, z = v[2];
+    const y2 = y*cp + z*sp2, z2 = -y*sp2 + z*cp;
+    return [x, y2 + bobY - CAM.y, z2 - CAM.z];
+  };
+  const prims = PLANE.map(pr => {
+    const pts = pr.k === 'seg' ? [tf(pr.a), tf(pr.b)] : pr.pts.map(tf);
+    return {pr, pts, d: pts.reduce((m,q) => m + q[2], 0)/pts.length};
+  }).sort((a,b) => b.d - a.d);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const {pr, pts, d} of prims){
+    const sc = pts.map(q => proj(q[0], q[1], q[2]));
+    if (pr.k === 'seg'){
+      const w = 2*f*pr.r/d;
+      ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = w + 2;
+      ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
+      ctx.strokeStyle = pr.c; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(sc[0][0],sc[0][1]); ctx.lineTo(sc[1][0],sc[1][1]); ctx.stroke();
+    } else {
+      ctx.fillStyle = pr.c; ctx.strokeStyle = 'rgba(11,18,32,.35)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); sc.forEach((q,i) => i ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+  near.forEach(drawPart);
+
+  drawGauges(t, cx, hy + f*CAM.y/(-CAM.z), S.roll - S.zeroRoll);
+}
+
+// 기울기 눈금 + 호흡 가이드 (두 시점 공통). pointer: 눈금 바늘이 가리킬 기울기
+function drawGauges(t, cx, cy, pointer){
+  ctx.save();
+  ctx.translate(cx, cy);
+  const arcR = Math.min(W,H)*0.36;
+  ctx.strokeStyle = 'rgba(232,238,246,.5)'; ctx.lineWidth = 2;
+  for (const d of [-45,-30,-20,-10,0,10,20,30,45]){
+    const a = (d-90)*D2R, l = d % 30 ? 8 : 14;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a)*arcR, Math.sin(a)*arcR);
+    ctx.lineTo(Math.cos(a)*(arcR-l), Math.sin(a)*(arcR-l)); ctx.stroke();
+  }
+  const pa = (pointer-90)*D2R;
+  ctx.fillStyle = '#f2c14e';
+  ctx.beginPath();
+  ctx.moveTo(Math.cos(pa)*(arcR-16), Math.sin(pa)*(arcR-16));
+  ctx.lineTo(Math.cos(pa-0.04)*(arcR-30), Math.sin(pa-0.04)*(arcR-30));
+  ctx.lineTo(Math.cos(pa+0.04)*(arcR-30), Math.sin(pa+0.04)*(arcR-30));
+  ctx.fill();
+  if (opt.breath){
+    const c = (t/1000) % 10;
+    const k = c < 4 ? c/4 : 1 - (c-4)/6;
+    const e = reduceMotion ? 0.5 : 0.5 - 0.5*Math.cos(Math.PI*k);
+    ctx.strokeStyle = 'rgba(232,238,246,.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0,0, 40 + e*60, 0, Math.PI*2); ctx.stroke();
+    $('breathText').textContent = c < 4 ? '들이쉬기' : '내쉬기';
+  }
+  ctx.restore();
+}
+
+// ---------- 조종석 시점 ----------
+function drawCockpit(t){
   const roll = S.roll - S.zeroRoll, pitch = S.pitch - S.zeroPitch;
   const cx = W/2, cy = H/2, ppd = Math.min(W,H)/40;
   const R = Math.hypot(W,H);
@@ -354,35 +484,11 @@ function draw(t){
   }
   ctx.restore();
 
-  // 기울기 눈금 (위쪽 호)
-  ctx.save();
-  ctx.translate(cx, cy);
-  const arcR = Math.min(W,H)*0.36;
-  ctx.strokeStyle = 'rgba(232,238,246,.5)'; ctx.lineWidth = 2;
-  for (const d of [-45,-30,-20,-10,0,10,20,30,45]){
-    const a = (d-90)*D2R, l = d % 30 ? 8 : 14;
-    ctx.beginPath(); ctx.moveTo(Math.cos(a)*arcR, Math.sin(a)*arcR);
-    ctx.lineTo(Math.cos(a)*(arcR-l), Math.sin(a)*(arcR-l)); ctx.stroke();
-  }
-  const pa = (-roll-90)*D2R;
-  ctx.fillStyle = '#f2c14e';
-  ctx.beginPath();
-  ctx.moveTo(Math.cos(pa)*(arcR-16), Math.sin(pa)*(arcR-16));
-  ctx.lineTo(Math.cos(pa-0.04)*(arcR-30), Math.sin(pa-0.04)*(arcR-30));
-  ctx.lineTo(Math.cos(pa+0.04)*(arcR-30), Math.sin(pa+0.04)*(arcR-30));
-  ctx.fill();
-
-  // 호흡 가이드: 4초 들이쉬기, 6초 내쉬기
-  if (opt.breath){
-    const c = (t/1000) % 10;
-    const k = c < 4 ? c/4 : 1 - (c-4)/6;
-    const e = reduceMotion ? 0.5 : 0.5 - 0.5*Math.cos(Math.PI*k);
-    ctx.strokeStyle = 'rgba(232,238,246,.7)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0,0, 40 + e*60, 0, Math.PI*2); ctx.stroke();
-    $('breathText').textContent = c < 4 ? '들이쉬기' : '내쉬기';
-  }
+  drawGauges(t, cx, cy, -roll);
 
   // 기체 기준 표시 (고정)
+  ctx.save();
+  ctx.translate(cx, cy);
   ctx.strokeStyle = '#0b1220'; ctx.lineWidth = 8; ctx.lineCap = 'round';
   const wing = () => { ctx.beginPath(); ctx.moveTo(-90,0); ctx.lineTo(-36,0); ctx.lineTo(-20,14);
     ctx.moveTo(90,0); ctx.lineTo(36,0); ctx.lineTo(20,14); ctx.stroke();
@@ -478,6 +584,12 @@ $('btnStop').addEventListener('click', () => {
 $('btnZero').addEventListener('click', () => {
   S.zeroRoll = S.roll; S.zeroPitch = S.pitch; S.heading = 0;
   showBanner('지금 자세를 수평으로 맞췄어요.');
+});
+const viewBtn = $('btnView');
+const syncView = () => { viewBtn.textContent = opt.view === 'chase' ? '조종석 시점' : '3인칭 시점'; };
+syncView();
+viewBtn.addEventListener('click', () => {
+  opt.view = opt.view === 'chase' ? 'cockpit' : 'chase'; store.set('view', opt.view); syncView();
 });
 const breathBtn = $('btnBreath');
 breathBtn.setAttribute('aria-pressed', String(opt.breath));
