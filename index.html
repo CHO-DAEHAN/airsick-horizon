@@ -70,8 +70,15 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 
 .intro{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;justify-content:center;gap:20px;
   padding:calc(env(safe-area-inset-top,0px) + 24px) max(24px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(24px,env(safe-area-inset-left,0px));
-  background:linear-gradient(180deg,#1d3557 0%,#2c5078 49.6%,var(--line) 49.8%,var(--line) 50.2%,#2a2118 50.4%,#14100c 100%)}
-.intro .box{max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:14px;background:rgba(11,18,32,.82);padding:22px;border-radius:20px}
+  justify-content:flex-end;background:linear-gradient(rgba(5,9,16,0) 40%,rgba(5,9,16,.55))}
+.intro .box{width:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:14px;background:rgba(11,18,32,.84);padding:22px;border-radius:20px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.pick{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center}
+.pick label{font-size:14px;font-weight:700;color:var(--muted)}
+.pick select{width:100%;font-size:16px;padding:11px 10px}
+.seg{display:flex;width:100%;max-width:420px;padding:3px;gap:3px;border-radius:13px;background:rgba(11,18,32,.6);border:1px solid rgba(255,255,255,.12)}
+.seg button{flex:1;border:0;background:transparent;padding:9px 6px}
+.seg button[aria-pressed="true"]{background:var(--line);color:#1b1404}
 .intro h1{margin:0;font-size:28px;letter-spacing:-.01em;text-wrap:balance}
 .intro p{margin:0;color:#c7d2e1;line-height:1.6}
 .intro .btns{display:flex;gap:10px;flex-wrap:wrap}
@@ -99,10 +106,12 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <div class="breath" id="breathText" hidden></div>
 
 <div class="bar" id="bar" hidden>
+  <div class="seg" id="phaseSeg" role="group" aria-label="비행 단계">
+    <button data-p="takeoff">이륙</button><button data-p="cruise">순항</button><button data-p="landing">착륙</button>
+  </div>
   <button id="btnView">조종석 시점</button>
   <button id="btnZero">영점 맞추기</button>
   <button id="btnBreath" aria-pressed="false">호흡 가이드</button>
-  <button id="btnTips">멀미 팁</button>
   <button id="btnSet">설정</button>
   <button id="btnStop">정지</button>
 </div>
@@ -110,8 +119,12 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <section class="intro" id="intro">
   <div class="box">
     <h1>수평선</h1>
-    <p>비행기가 기울거나 흔들리는 걸 폰 센서로 감지해서, 뒤에서 바라본 비행기가 똑같이 기울고 흔들리는 모습을 보여줘요. 몸이 느끼는 움직임을 눈으로도 보게 해서 멀미를 줄이는 방식이에요.</p>
-    <p>폰을 세워 들거나 트레이 테이블에 두고, 기울어지기 전에 영점을 맞춰 주세요.</p>
+    <p style="font-size:14px">몸이 느끼는 기울기를 화면 속 비행기로 보여줘서 멀미를 줄여요.</p>
+    <div class="pick">
+      <label for="dep">출발</label><select id="dep"></select>
+      <label for="arr">도착</label><select id="arr"></select>
+    </div>
+    <p style="font-size:13px;color:var(--muted)">이륙할 땐 출발 도시, 착륙할 땐 도착 도시가 보여요.</p>
     <div class="btns">
       <button class="primary" id="btnStart">센서 켜고 시작</button>
       <button id="btnDemo">데모 보기</button>
@@ -139,18 +152,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
 <div class="sheet" id="settings" hidden>
   <div class="card">
     <h2>설정</h2>
-    <div class="row">
-      <span>배경 도시</span>
-      <select id="city">
-        <option value="ICN">서울 · 인천</option>
-        <option value="JFK">뉴욕 · JFK</option>
-        <option value="CDG">파리 · 샤를드골</option>
-        <option value="LHR">런던 · 히스로</option>
-        <option value="HND">도쿄 · 하네다</option>
-        <option value="DXB">두바이</option>
-        <option value="SIN">싱가포르 · 창이</option>
-      </select>
-    </div>
+    <div class="row"><span>출발 도시</span><select id="setDep"></select></div>
+    <div class="row"><span>도착 도시</span><select id="setArr"></select></div>
     <div class="row">
       <span>시간대</span>
       <select id="tod">
@@ -160,17 +163,9 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--line)}
         <option value="night">밤</option>
       </select>
     </div>
-    <div class="row">
-      <span>비행 단계</span>
-      <select id="phase">
-        <option value="75">이륙·착륙</option>
-        <option value="150">상승·하강</option>
-        <option value="230">순항</option>
-      </select>
-    </div>
-    <p style="font-size:13px;color:var(--muted)">지금 비행 단계를 고르면 기울기가 더 정확해지고, 순항 중엔 도시가 멀리 작게 보여요.</p>
     <label class="chk"><input type="checkbox" id="optVibe" checked> 기울기 시작할 때 진동 알림 (안드로이드)</label>
     <label class="chk"><input type="checkbox" id="optBanner" checked> 기울기 시작할 때 화면 알림</label>
+    <button id="btnTips">멀미 줄이는 법</button>
     <button id="setClose" class="primary">닫기</button>
   </div>
 </div>
@@ -186,9 +181,11 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('horizon.'+k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('horizon.'+k, JSON.stringify(v)); }catch(e){} }
 };
-const opt = { view: store.get('view', 'chase'), city: store.get('city', 'ICN'), tod: store.get('tod', 'auto'), speed: store.get('speed', 230), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
-$('phase').value = String(opt.speed);
-$('city').value = opt.city;
+const opt = { view: store.get('view', 'chase'), dep: store.get('dep', store.get('city', 'ICN')), arr: store.get('arr', 'HND'),
+  phase: 'takeoff', tod: store.get('tod', 'auto'), vibe: store.get('vibe', true), banner: store.get('banner', true), breath: store.get('breath', false) };
+// 선회 중 기울기 추정에 쓰는 비행 속도 (m/s): 이착륙 땐 느리고 순항 땐 빠름
+const PHASE_SPEED = {takeoff:90, cruise:230, landing:90};
+opt.speed = PHASE_SPEED[opt.phase] || 90;
 $('tod').value = opt.tod;
 $('optVibe').checked = opt.vibe;
 $('optBanner').checked = opt.banner;
@@ -359,30 +356,50 @@ function timeOfDay(){
   if ((h >= 6 && h < 7.5) || (h >= 17.5 && h < 19.5)) return 'dusk';
   return h >= 7.5 && h < 17.5 ? 'day' : 'night';
 }
+// 건물 색은 [빛 받는 면, 그늘 면]
 const PAL = {
-  day:  {sky:['#2f6db5','#7fb0dd','#dbe9f3'], grd:['#a3ada3','#5b6a52','#2f3a2b'], mount:'#a9b9c9', back:'#8fa1b5', front:'#71839a', land:'#5a6c85', snow:'#f4f7fb',
-         cloud:'rgba(255,255,255,A)', ca:0.6, gdot:'rgba(55,66,58,A)', ga:0.35, glow:0, star:0, win:0,
+  day:  {sky:['#2a64ad','#78a9d6','#dae8f2'], grd:['#97a39a','#56644d','#2c3628'], haze:'#cfdde8',
+         mount:'#93a8bd', far:'#9badc0', bld:['#7d91aa','#4f627b'], near:['#5c6e85','#3a4a5e'], land:['#6b809b','#3f516a'],
+         water:['#6f93b5','#3a5874'], deck:['#f5f8fc','#b7c8db'], winOn:0, rim:null,
+         cloud:'rgba(255,255,255,A)', ca:0.6, gdot:'rgba(55,66,58,A)', ga:0.35, glow:0, star:0,
          body:'#eef2f7', wing:'#b8c3d1', eng:'#7f8c9e', acc:'#f2c14e'},
-  dusk: {sky:['#1d2350','#8a4c72','#f39c5a'], grd:['#4a3a42','#221a22','#0e0b0f'], mount:'#5b4662', back:'#3c3248', front:'#2a2236', land:'#221b2d', snow:'#e9c3b8',
-         cloud:'rgba(255,186,165,A)', ca:0.42, gdot:'rgba(255,196,120,A)', ga:0.6, glow:0.55, star:0.35, win:0.6,
+  dusk: {sky:['#1b2150','#8a4c72','#f39c5a'], grd:['#4a3a42','#221a22','#0e0b0f'], haze:'#d98a66',
+         mount:'#664c66', far:'#6d5068', bld:['#43344d','#2a2034'], near:['#2c2337','#191322'], land:['#4a3852','#271d31'],
+         water:['#8a5a62','#2a1c2c'], deck:['#f4b896','#5a4868'], winOn:0.35, rim:'rgba(255,170,100,.85)',
+         cloud:'rgba(255,186,165,A)', ca:0.42, gdot:'rgba(255,196,120,A)', ga:0.6, glow:0.55, star:0.35,
          body:'#cfc8d2', wing:'#958fa2', eng:'#5f5a6e', acc:'#f2b44e'},
-  night:{sky:['#02050d','#0a1430','#2b2a48'], grd:['#17141f','#07070c','#030305'], mount:'#141c30', back:'#111a2d', front:'#0a1120', land:'#0d1528', snow:'#3c4660',
-         cloud:'rgba(95,105,135,A)', ca:0.3, gdot:'rgba(255,198,120,A)', ga:0.9, glow:1, star:1, win:1,
+  night:{sky:['#02050d','#0a1430','#26284a'], grd:['#17141f','#07070c','#030305'], haze:'#2c2c48',
+         mount:'#121a2c', far:'#161e34', bld:['#141c2f','#0b1120'], near:['#0c1220','#060a13'], land:['#121b31','#090e1b'],
+         water:['#0e1729','#04070e'], deck:['#2b3450','#0b1020'], winOn:0.45, rim:null,
+         cloud:'rgba(95,105,135,A)', ca:0.3, gdot:'rgba(255,198,120,A)', ga:0.9, glow:1, star:1,
          body:'#8d98ab', wing:'#5f6a7d', eng:'#3f4858', acc:'#c99a3a'}
 };
+const hex = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+const mix = (a, b, t) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v,i) => Math.round(v + (B[i]-v)*t)).join(',')})`; };
 
 // ---------- 공항 도시 ----------
-// span: 도시가 펼쳐진 각도(±도), h: 일반 건물 높이 범위, mount: [방향, 반폭(도), 높이, 종류], marks: [랜드마크, 방향]
+// span: 도시 폭(±도), h: 건물 높이 범위, water: 0 없음 / 1 강 / 2 바다,
+// mount: [방향, 반폭(도), 높이, 종류], cluster: [방향, 반폭, 높이범위] 고층 밀집지, marks: [랜드마크, 방향]
 const CITIES = {
-  ICN:{name:'서울 · 인천', span:70, h:[25,85], mount:[[-62,26,60],[-28,20,75],[12,30,62],[52,24,55]], marks:[['namsan',-26],['b63',-10],['lotte',20]]},
-  JFK:{name:'뉴욕 · JFK', span:55, h:[35,120], marks:[['wtc',-20],['empire',-3],['chrysler',7]]},
-  CDG:{name:'파리 · 샤를드골', span:75, h:[18,34], cluster:[26,7,[80,140]], marks:[['eiffel',-10]]},
-  LHR:{name:'런던 · 히스로', span:70, h:[20,60], cluster:[12,6,[60,110]], marks:[['bigben',-24],['eye',-15],['shard',5]]},
-  HND:{name:'도쿄 · 하네다', span:80, h:[25,95], mount:[[-50,24,125,'fuji']], marks:[['tokyoTower',-14],['skytree',15]]},
-  DXB:{name:'두바이', span:60, h:[30,120], marks:[['arab',-32],['burj',0]]},
-  SIN:{name:'싱가포르 · 창이', span:60, h:[35,110], marks:[['mbs',-6]]}
+  ICN:{name:'서울 · 인천', span:70, h:[25,85], water:1, mount:[[-62,26,70],[-28,20,95],[12,30,78],[52,24,66]], marks:[['namsan',-26],['b63',-11],['lotte',20]]},
+  CJU:{name:'제주', span:50, h:[10,32], water:2, mount:[[0,48,100,'broad']], marks:[]},
+  PUS:{name:'부산 · 김해', span:60, h:[25,90], water:2, mount:[[-45,22,85],[-10,18,72],[38,25,88]], cluster:[18,6,[100,140]], marks:[['lct',22]]},
+  HND:{name:'도쿄 · 하네다', span:80, h:[25,95], water:2, mount:[[-22,26,115,'fuji']], marks:[['tokyoTower',-12],['skytree',16]]},
+  KIX:{name:'오사카 · 간사이', span:70, h:[25,80], water:2, mount:[[-40,30,60],[35,30,55]], marks:[['harukas',8]]},
+  TPE:{name:'타이베이', span:60, h:[20,60], water:1, mount:[[-40,25,75],[30,30,85]], marks:[['t101',6]]},
+  HKG:{name:'홍콩', span:55, h:[60,150], water:2, mount:[[-6,38,130]], marks:[['ifc',-8]]},
+  PVG:{name:'상하이 · 푸둥', span:65, h:[30,110], water:1, cluster:[6,8,[100,170]], marks:[['pearl',-6],['swfc',8],['shtower',13]]},
+  BKK:{name:'방콕', span:65, h:[30,100], water:1, marks:[['mahanakhon',4]]},
+  DAD:{name:'다낭', span:50, h:[20,70], water:2, mount:[[-40,20,65],[25,18,55]], marks:[]},
+  SIN:{name:'싱가포르 · 창이', span:60, h:[35,110], water:2, marks:[['mbs',-6]]},
+  DXB:{name:'두바이', span:60, h:[30,120], water:2, marks:[['arab',-32],['burj',0]]},
+  CDG:{name:'파리 · 샤를드골', span:75, h:[18,34], water:1, cluster:[26,7,[80,140]], marks:[['eiffel',-10]]},
+  LHR:{name:'런던 · 히스로', span:70, h:[20,60], water:1, cluster:[12,6,[60,110]], marks:[['bigben',-24],['eye',-15],['shard',5]]},
+  JFK:{name:'뉴욕 · JFK', span:55, h:[35,120], water:1, marks:[['wtc',-20],['empire',-3],['chrysler',7]]},
+  LAX:{name:'로스앤젤레스', span:75, h:[10,35], water:0, cluster:[0,5,[70,140]], mount:[[-30,35,60],[25,30,66]], marks:[]},
+  SYD:{name:'시드니', span:55, h:[30,100], water:2, marks:[['bridge',-20],['opera',-7]]}
 };
-// 랜드마크 실루엣 (단위 u, y는 위쪽이 +). 여러 다각형 묶음.
+// 랜드마크 실루엣 (단위 u, y는 위쪽이 +). 다각형 배열, {c:[x,y,r]}는 원
 const SHAPES = {
   lotte:[[[-9,0],[-7,120],[-3,200],[0,215],[3,200],[7,120],[9,0]]],
   b63:[[[-8,0],[-8,95],[-4,102],[8,102],[8,0]]],
@@ -397,53 +414,282 @@ const SHAPES = {
   bigben:[[[-6,0],[-6,90],[-7,90],[-7,100],[-6,100],[-6,110],[-3,125],[0,142],[3,125],[6,110],[6,100],[7,100],[7,90],[6,90],[6,0]]],
   burj:[[[-16,0],[-14,80],[-10,80],[-9,160],[-6,160],[-5,240],[-3,240],[-2,300],[-0.7,300],[0,380],[0.7,300],[2,300],[3,240],[5,240],[6,160],[9,160],[10,80],[14,80],[16,0]]],
   arab:[[[-12,0],[-10,60],[-5,110],[2,140],[5,152],[7,110],[9,45],[11,0]]],
-  mbs:[[[-34,0],[-34,105],[-24,105],[-24,0]],[[-5,0],[-5,108],[5,108],[5,0]],[[24,0],[24,111],[34,111],[34,0]],[[-42,104],[-42,112],[48,117],[48,110]]]
+  mbs:[[[-34,0],[-34,105],[-24,105],[-24,0]],[[-5,0],[-5,108],[5,108],[5,0]],[[24,0],[24,111],[34,111],[34,0]],[[-42,104],[-42,112],[48,117],[48,110]]],
+  lct:[[[-8,0],[-8,180],[0,192],[8,184],[8,0]],[[-26,0],[-26,150],[-19,158],[-12,152],[-12,0]],[[12,0],[12,148],[19,156],[26,150],[26,0]]],
+  harukas:[[[-16,0],[-16,90],[-12,90],[-12,120],[-8,120],[-8,140],[8,140],[8,120],[12,120],[12,90],[16,90],[16,0]]],
+  ifc:[[[-11,0],[-11,150],[-9,150],[-9,170],[-7,170],[-6,185],[-4,190],[4,190],[6,185],[7,170],[9,170],[9,150],[11,150],[11,0]]],
+  shtower:[[[-14,0],[-12,100],[-9,200],[-6,265],[-2,290],[3,284],[7,255],[10,180],[13,80],[14,0]]],
+  swfc:[[[-12,0],[-10,150],[-6,226],[6,226],[10,150],[12,0]],[[-4.5,203],[4.5,203],[4,214],[-4,214]]],
+  pearl:[[[-14,0],[-3,72],[3,72],[14,0],[9,0],[0,62],[-9,0]],[[-2.5,60],[-2.5,178],[2.5,178],[2.5,60]],{c:[0,84,16]},{c:[0,176,9]},[[-1.5,182],[-0.5,215],[0.5,215],[1.5,182]]],
+  mahanakhon:[[[-9,0],[-9,145],[9,145],[9,120],[6,115],[9,108],[9,80],[5,74],[9,68],[9,40],[6,35],[9,30],[9,0]]],
+  opera:[[[-46,0],[-46,6],[32,6],[32,0]],[[-40,6],[-31,34],[-18,6]],[[-25,6],[-12,42],[-2,6]],[[-8,6],[6,36],[14,6]],[[10,6],[20,27],[28,6]]],
+  t101:[(() => {
+    const L = [[-13,0],[-11,70]];
+    for (let i = 0; i < 8; i++){ const y = 70 + i*17; L.push([-8.5,y],[-11,y+17]); }
+    L.push([-6,206],[-4,216],[-1,218],[-0.4,248],[0.4,248],[1,218],[4,216],[6,206]);
+    for (let i = 7; i >= 0; i--){ const y = 70 + i*17; L.push([11,y+17],[8.5,y]); }
+    L.push([11,70],[13,0]); return L; })()]
 };
 SHAPES.tokyoTower = [SHAPES.eiffel[0].map(([x,y]) => [x*0.8, y*0.78])];
-const SHAPE_TOP = {}; for (const k in SHAPES) SHAPE_TOP[k] = Math.max(...SHAPES[k].flat().map(p => p[1]));
-// 원래 색이 있는 랜드마크 (도쿄타워 빨강, 밤의 에펠탑 조명 등)
-const LIT = {
-  tokyoTower:{day:'#d6512f', dusk:'#b8452a', night:'#e07a2e'},
-  eiffel:{dusk:'#7d5f36', night:'#c79a3c'},
-  eye:{night:'#4f8fd0'}
-};
+const EVENODD = new Set(['swfc']);
+const shapeTop = k => k === 'eye' ? 98 : k === 'bridge' ? 50 : Math.max(...SHAPES[k].map(p => Array.isArray(p) ? Math.max(...p.map(q => q[1])) : p.c[1] + p.c[2]));
+// 밤에 통째로 조명을 받는 랜드마크 / 윤곽에 조명이 켜지는 랜드마크 색
+const FULL_LIT = {eiffel:{night:'#d9a640', dusk:'#8a6a3a'}, tokyoTower:{day:'#d6512f', dusk:'#b8452a', night:'#f08a3a'}, opera:{day:'#f1efe8', dusk:'#e7c3a8', night:'#efe2c4'}};
+const GLOW = {lotte:'#cfe3ff', namsan:'#9ad0ff', empire:'#ffd27a', wtc:'#dfe8ff', chrysler:'#f6e6b0', burj:'#cfe0ff', skytree:'#9cc8ff',
+  t101:'#8fe3c8', pearl:'#ff7ad1', shtower:'#bcd6ff', swfc:'#cfe0ff', ifc:'#e6f0ff', lct:'#cfe3ff', harukas:'#ffe2a8', mbs:'#ffe9b8',
+  shard:'#dfe8ff', bigben:'#ffd98a', arab:'#a8d4ff', mahanakhon:'#e8f0ff', b63:'#ffe7a8', eye:'#5aa8ff', bridge:'#ffe2a0'};
 
 function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-let scene = null;
-function buildScene(id){
-  const C = CITIES[id];
-  let seed = 7; for (const ch of id) seed = seed*31 + ch.charCodeAt(0);
-  const rnd = mulberry(seed);
-  const layers = [[],[]];
-  layers.forEach((L, li) => {
-    let b = -C.span;
-    while (b < C.span){
-      const w = 0.5 + rnd()*1.3, center = 1 - Math.abs(b)/C.span;
-      let h = (C.h[0] + rnd()*(C.h[1]-C.h[0])) * (0.3 + 0.7*center) * (li ? 0.55 : 1);
-      if (!li && C.cluster && Math.abs(b - C.cluster[0]) < C.cluster[1]) h = C.cluster[2][0] + rnd()*(C.cluster[2][1]-C.cluster[2][0]);
-      const win = [], n = Math.floor(h/10 * rnd());
-      for (let k = 0; k < n; k++) win.push([0.15 + rnd()*0.7, 0.08 + rnd()*0.85]);
-      L.push({b, w, h, win});
-      b += w*(0.55 + rnd()*0.7);
-    }
-  });
-  const lights = []; for (let i = 0; i < 340; i++) lights.push({b:(rnd()*2-1)*(C.span+25), d:rnd()*rnd(), s:rnd()});
-  const stars = []; for (let i = 0; i < 120; i++) stars.push({b:rnd()*360, e:rnd(), s:rnd()});
-  return {id, C, layers, lights, stars};
-}
 const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
 
-function drawCity(t, cx, hy, f, P, tod){
-  if (!scene || scene.id !== opt.city) scene = buildScene(opt.city);
-  const C = scene.C, ppd = f*D2R;
-  const alt = opt.speed >= 230 ? 0.65 : opt.speed >= 150 ? 0.35 : 0;   // 높이 올라갈수록 도시가 작고 흐려짐
-  const u = f*0.0012*(1 - alt*0.6);
-  const X = b => cx + wrap180(b + S.heading)*ppd;
+// 지금 화면에 보일 도시: 이륙이면 출발지, 착륙이면 도착지, 순항이면 없음
+const currentCity = () => opt.phase === 'cruise' ? null : (opt.phase === 'landing' ? opt.arr : opt.dep);
 
-  // 별
+// ---------- 도시 파노라마 (한 번 그려서 저장, 매 프레임엔 옮겨 붙이기만 함) ----------
+const PANO_SPAN = 100;          // 파노라마 폭: ±100도
+let pano = null;
+function getPano(id, tod, f){
+  const key = [id, tod, Math.round(f), DPR].join('|');
+  if (pano && pano.key === key) return pano;
+  pano = renderPano(id, tod, f); pano.key = key;
+  return pano;
+}
+
+function renderPano(id, tod, f){
+  const C = CITIES[id], P = PAL[tod], ppd = f*D2R, u = f*0.0014;
+  let seed = 7; for (const ch of id) seed = seed*31 + ch.charCodeAt(0);
+  const rnd = mulberry(seed);
+  const topU = Math.max(160, ...C.marks.map(m => shapeTop(m[0])), ...(C.mount||[]).map(m => m[2]));
+  const Hy = Math.ceil(topU*u*1.1 + 24), below = 110;
+  const Wp = Math.ceil(PANO_SPAN*2*ppd), Hp = Hy + below;
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(Wp*DPR); cv.height = Math.ceil(Hp*DPR);
+  const g = cv.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0);
+  const px = b => (b + PANO_SPAN)*ppd;
+  const night = tod !== 'day';
+  const beacons = [];
+
+  // 1) 산: 멀수록 하늘색에 묻힘
+  for (const m of C.mount || []){
+    const x = px(m[0]), hw = m[1]*ppd, hh = m[2]*u;
+    const gr = g.createLinearGradient(0, Hy-hh, 0, Hy);
+    gr.addColorStop(0, mix(P.mount, P.haze, 0.15)); gr.addColorStop(1, mix(P.mount, P.haze, 0.55));
+    g.fillStyle = gr; g.beginPath(); g.moveTo(x-hw, Hy);
+    if (m[3] === 'fuji'){
+      g.quadraticCurveTo(x-hw*0.45, Hy-hh*0.3, x-hw*0.11, Hy-hh); g.lineTo(x+hw*0.11, Hy-hh);
+      g.quadraticCurveTo(x+hw*0.45, Hy-hh*0.3, x+hw, Hy); g.fill();
+      g.fillStyle = tod === 'night' ? '#3c4660' : tod === 'dusk' ? '#e9c3b8' : '#f4f7fb';
+      g.beginPath(); g.moveTo(x-hw*0.11, Hy-hh); g.lineTo(x+hw*0.11, Hy-hh); g.lineTo(x+hw*0.21, Hy-hh*0.72);
+      g.lineTo(x+hw*0.1, Hy-hh*0.78); g.lineTo(x, Hy-hh*0.7); g.lineTo(x-hw*0.09, Hy-hh*0.8); g.lineTo(x-hw*0.21, Hy-hh*0.72); g.fill();
+    } else if (m[3] === 'broad'){
+      g.bezierCurveTo(x-hw*0.6, Hy-hh*0.35, x-hw*0.25, Hy-hh, x, Hy-hh); g.bezierCurveTo(x+hw*0.25, Hy-hh, x+hw*0.6, Hy-hh*0.35, x+hw, Hy); g.fill();
+    } else {
+      // 능선이 여러 개인 산
+      const n = 5; let px0 = x-hw;
+      for (let i = 1; i <= n; i++){
+        const xi = x - hw + (2*hw)*i/n, peak = hh*(0.55 + 0.45*Math.sin(Math.PI*i/n)) * (0.85 + rnd()*0.3);
+        g.quadraticCurveTo((px0+xi)/2, Hy - peak*1.15, xi, i === n ? Hy : Hy - peak*0.6); px0 = xi;
+      }
+      g.fill();
+    }
+  }
+
+  // 건물 하나: 두 면(빛/그늘) + 지붕 모양 + 창문
+  const building = (x, w, h, base, cols, winRate, detail) => {
+    const split = w*(0.55 + rnd()*0.2);
+    g.fillStyle = cols[0]; g.fillRect(x, base-h, split, h);
+    g.fillStyle = cols[1]; g.fillRect(x+split, base-h, w-split, h);
+    let top = h; const r = rnd();
+    if (r < 0.18 && h > 30){                         // 계단식 윗부분
+      const w2 = w*(0.5 + rnd()*0.2), h2 = h*(0.12 + rnd()*0.1), x2 = x + (w-w2)/2;
+      g.fillStyle = cols[0]; g.fillRect(x2, base-h-h2, split-(x2-x) > 0 ? split-(x2-x) : 0, h2);
+      g.fillStyle = cols[1]; g.fillRect(x+split, base-h-h2, x2+w2-(x+split), h2);
+      top += h2;
+    } else if (r < 0.3 && h > 40){                  // 안테나
+      g.fillStyle = cols[1]; const ah = h*(0.12 + rnd()*0.15); g.fillRect(x + w*0.5 - 0.4, base-h-ah, 0.8, ah); top += ah;
+    } else if (r < 0.38){                            // 비스듬한 지붕
+      g.fillStyle = cols[1]; g.beginPath(); g.moveTo(x, base-h); g.lineTo(x+w, base-h); g.lineTo(x+w, base-h-w*0.6); g.fill(); top += w*0.6;
+    }
+    if (P.rim){ g.fillStyle = P.rim; g.fillRect(x, base-h, split, 0.9); g.globalAlpha = 0.35; g.fillRect(x, base-h, 0.9, h); g.globalAlpha = 1; }
+    if (night && winRate > 0){
+      const warm = rnd() < 0.7, fh = 2.6, cw = 2.3;
+      for (let y = base - h + 2; y < base - 2; y += fh){
+        const pf = winRate * (0.25 + rnd()*1.2);
+        for (let wx = x + 1; wx < x + w - 1.2; wx += cw){
+          if (rnd() < pf){
+            const b = 0.55 + rnd()*0.45;
+            g.fillStyle = warm ? `rgba(255,${200 + (rnd()*40|0)},${120 + (rnd()*50|0)},${b})` : `rgba(${200 + (rnd()*40|0)},225,255,${b})`;
+            g.fillRect(wx, y, 1.2, 1.1);
+          }
+        }
+      }
+    } else if (!night && detail){
+      g.fillStyle = 'rgba(255,255,255,.08)';
+      for (let y = base - h + 2; y < base - 1; y += 3) g.fillRect(x, y, w, 0.8);
+      g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(x, base-h, split, 1);
+    }
+    return top;
+  };
+  const layer = (spanMul, hMul, base, cols, winRate, detail, step) => {
+    let b = -C.span*spanMul;
+    while (b < C.span*spanMul){
+      const wDeg = (0.45 + rnd()*1.2)*step, center = 1 - Math.min(1, Math.abs(b)/(C.span*spanMul));
+      let h = (C.h[0] + rnd()*(C.h[1]-C.h[0])) * (0.3 + 0.7*center) * hMul;
+      if (C.cluster && Math.abs(b - C.cluster[0]) < C.cluster[1]) h = (C.cluster[2][0] + rnd()*(C.cluster[2][1]-C.cluster[2][0])) * hMul;
+      const top = building(px(b), wDeg*ppd, h*u, base, cols, winRate, detail);
+      if (night && hMul >= 1 && h > C.h[1]*0.85 && rnd() < 0.5) beacons.push({b: b + wDeg/2, y: base - top - 1});
+      b += wDeg*(0.6 + rnd()*0.6);
+    }
+  };
+
+  // 2) 먼 건물 (뿌옇게)
+  const farC = mix(P.far, P.haze, 0.25);
+  layer(1.15, 0.55, Hy, [farC, mix(P.far, P.haze, 0.1)], P.winOn*0.35, false, 0.8);
+  // 3) 중간 건물
+  layer(1, 1, Hy+1, P.bld, P.winOn, true, 1);
+
+  // 4) 랜드마크
+  for (const [k, b] of C.marks){
+    const x = px(b), base = Hy + 1;
+    if (k === 'eye'){
+      g.strokeStyle = night ? GLOW.eye : P.land[1]; g.lineWidth = Math.max(1.4, 2.5*u);
+      if (night){ g.shadowColor = GLOW.eye; g.shadowBlur = 8; }
+      g.beginPath(); g.arc(x, base - 52*u, 46*u, 0, Math.PI*2); g.stroke();
+      g.lineWidth = Math.max(0.6, u);
+      for (let i = 0; i < 16; i++){ const a = i/16*Math.PI*2; g.beginPath(); g.moveTo(x, base-52*u); g.lineTo(x + Math.cos(a)*46*u, base - 52*u + Math.sin(a)*46*u); g.stroke(); }
+      g.shadowBlur = 0; g.lineWidth = Math.max(1.4, 2.5*u);
+      g.beginPath(); g.moveTo(x-16*u, base); g.lineTo(x, base-52*u); g.lineTo(x+16*u, base); g.stroke();
+      continue;
+    }
+    if (k === 'bridge'){
+      const col = night ? GLOW.bridge : P.land[1];
+      g.strokeStyle = col; g.fillStyle = P.land[1]; g.lineWidth = Math.max(1.2, 2.2*u);
+      if (night){ g.shadowColor = col; g.shadowBlur = 6; }
+      g.beginPath(); g.moveTo(x-70*u, base-20*u); g.quadraticCurveTo(x, base-80*u, x+70*u, base-20*u); g.stroke();
+      g.beginPath(); g.moveTo(x-80*u, base-20*u); g.lineTo(x+80*u, base-20*u); g.stroke();
+      g.lineWidth = Math.max(0.5, 0.8*u);
+      for (let i = -6; i <= 6; i++){ const xx = x + i*10*u, t = (i*10)/70, yy = base - 20*u - (1 - t*t)*30*u; g.beginPath(); g.moveTo(xx, yy); g.lineTo(xx, base-20*u); g.stroke(); }
+      g.shadowBlur = 0;
+      for (const s of [-1,1]) g.fillRect(x + s*72*u - 5*u, base - 32*u, 10*u, 32*u);
+      continue;
+    }
+    // 바운딩 박스 (그라데이션용)
+    const all = SHAPES[k].flatMap(p => Array.isArray(p) ? p : [[p.c[0]-p.c[2], p.c[1]], [p.c[0]+p.c[2], p.c[1]]]);
+    const minX = Math.min(...all.map(p => p[0])), maxX = Math.max(...all.map(p => p[0])), topY = Math.max(...all.map(p => p[1]));
+    const path = () => {
+      g.beginPath();
+      for (const p of SHAPES[k]){
+        if (Array.isArray(p)){ p.forEach(([qx,qy], i) => i ? g.lineTo(x+qx*u, base-qy*u) : g.moveTo(x+qx*u, base-qy*u)); g.closePath(); }
+        else { g.moveTo(x + (p.c[0]+p.c[2])*u, base - p.c[1]*u); g.arc(x + p.c[0]*u, base - p.c[1]*u, p.c[2]*u, 0, Math.PI*2); }
+      }
+    };
+    const full = FULL_LIT[k] && FULL_LIT[k][tod];
+    if (full){
+      g.fillStyle = full; if (tod === 'night'){ g.shadowColor = full; g.shadowBlur = 12; }
+    } else {
+      // 왼쪽은 빛 받는 면, 오른쪽은 그늘 면
+      const gr = g.createLinearGradient(x + minX*u, 0, x + maxX*u, 0);
+      gr.addColorStop(0, P.land[0]); gr.addColorStop(0.5, P.land[0]); gr.addColorStop(0.52, P.land[1]); gr.addColorStop(1, P.land[1]);
+      g.fillStyle = gr;
+    }
+    path(); g.fill(EVENODD.has(k) ? 'evenodd' : 'nonzero'); g.shadowBlur = 0;
+    if (!full && tod === 'night'){
+      // 윤곽 조명 + 창문
+      g.save(); path(); g.clip(EVENODD.has(k) ? 'evenodd' : 'nonzero');
+      for (let i = 0; i < 260; i++){
+        const wx = x + (minX + rnd()*(maxX-minX))*u, wy = base - rnd()*topY*u;
+        g.fillStyle = `rgba(255,236,200,${0.25 + rnd()*0.5})`; g.fillRect(wx, wy, 1.1, 1);
+      }
+      g.restore();
+      g.strokeStyle = GLOW[k] || '#dfe8ff'; g.lineWidth = 1; g.shadowColor = g.strokeStyle; g.shadowBlur = 8; g.globalAlpha = 0.85;
+      path(); g.stroke(); g.globalAlpha = 1; g.shadowBlur = 0;
+    } else if (!full && P.rim){
+      g.save(); path(); g.clip(); g.fillStyle = P.rim; g.globalAlpha = 0.5; g.fillRect(x + minX*u, base - topY*u, (maxX-minX)*u*0.12, topY*u); g.restore(); g.globalAlpha = 1;
+    } else if (!full){
+      g.save(); path(); g.clip(); g.fillStyle = 'rgba(255,255,255,.07)';
+      for (let y = base - topY*u; y < base; y += 3) g.fillRect(x + minX*u, y, (maxX-minX)*u, 0.8);
+      g.restore();
+    }
+    if (night) beacons.push({b, y: Hy - shapeTop(k)*u - 1.5});
+  }
+
+  // 5) 가까운 건물
+  layer(1.25, 0.5, Hy+3, P.near, P.winOn*1.1, true, 1.2);
+
+  // 6) 강·바다: 도시가 물에 비침
+  let groundTop = Hy + 4;
+  if (C.water){
+    const wt = Hy + 4, wh = C.water === 2 ? 36 : 15;
+    const copy = document.createElement('canvas'); copy.width = cv.width; copy.height = cv.height;
+    copy.getContext('2d').drawImage(cv, 0, 0);
+    const wg = g.createLinearGradient(0, wt, 0, wt+wh);
+    wg.addColorStop(0, P.water[0]); wg.addColorStop(1, P.water[1]);
+    g.fillStyle = wg; g.fillRect(0, wt, Wp, wh);
+    // 반사: 위 그림을 뒤집어 물결처럼 줄마다 살짝 흔들어 붙임
+    g.save(); g.globalAlpha = night ? 0.55 : 0.28; g.setTransform(1,0,0,1,0,0);
+    const rowsD = Math.ceil(wh*DPR), srcBot = (Hy+3)*DPR;
+    for (let r = 0; r < rowsD; r++){
+      const srcY = srcBot - r*(1.6 + r/rowsD*1.5);
+      if (srcY < 0) break;
+      const off = (rnd()*2 - 1) * (1 + r/rowsD*3) * DPR;
+      g.globalAlpha = (night ? 0.6 : 0.3) * (1 - r/rowsD*0.7);
+      g.drawImage(copy, 0, srcY, copy.width, 1, off, wt*DPR + r, copy.width, 1);
+    }
+    g.restore(); g.setTransform(DPR,0,0,DPR,0,0);
+    // 반짝임 줄
+    g.fillStyle = night ? 'rgba(255,220,160,.12)' : 'rgba(255,255,255,.18)';
+    for (let i = 0; i < Wp/6; i++) g.fillRect(rnd()*Wp, wt + rnd()*wh, 2 + rnd()*8, 0.7);
+    groundTop = wt + wh;
+  }
+
+  // 7) 가까운 땅: 밤엔 거리 불빛, 낮엔 도시 블록
+  const gg = g.createLinearGradient(0, groundTop, 0, Hp);
+  gg.addColorStop(0, P.near[1]); gg.addColorStop(1, P.grd[0]);
+  g.fillStyle = gg; g.fillRect(0, groundTop, Wp, Hp - groundTop);
+  const x0 = px(-C.span*1.3), x1 = px(C.span*1.3);
+  if (night){
+    // 가로등 줄 (가로로 이어진 불빛)
+    for (let row = 0; row < 14; row++){
+      const y = groundTop + 2 + Math.pow(row/14, 1.6)*(Hp - groundTop - 6), sp = 1.4 + row*0.35;
+      for (let x = x0 + rnd()*sp; x < x1; x += sp*(0.6 + rnd()*0.8)){
+        if (rnd() < 0.55) continue;
+        const s = 0.6 + row*0.07 + rnd()*0.5, w = rnd();
+        g.fillStyle = w < 0.75 ? `rgba(255,${180 + (rnd()*60|0)},${90 + (rnd()*60|0)},${0.5 + rnd()*0.5})` : `rgba(220,235,255,${0.5 + rnd()*0.4})`;
+        g.fillRect(x, y, s, s);
+      }
+    }
+    // 큰 도로 (불빛 띠)
+    for (let i = 0; i < 6; i++){
+      const y = groundTop + 4 + rnd()*(Hp - groundTop - 10);
+      const gl = g.createLinearGradient(0, y-1.5, 0, y+1.5);
+      gl.addColorStop(0, 'rgba(255,170,80,0)'); gl.addColorStop(0.5, `rgba(255,185,100,${0.35*P.glow})`); gl.addColorStop(1, 'rgba(255,170,80,0)');
+      g.fillStyle = gl; g.fillRect(x0 + rnd()*200, y-1.5, (x1-x0)*(0.3 + rnd()*0.5), 3);
+    }
+  } else {
+    for (let i = 0; i < 900; i++){
+      const t = rnd(), y = groundTop + 1 + t*t*(Hp - groundTop - 4), s = 1 + t*3;
+      g.fillStyle = rnd() < 0.5 ? 'rgba(200,205,210,.18)' : 'rgba(40,50,45,.22)';
+      g.fillRect(x0 + rnd()*(x1-x0), y, s*(1 + rnd()*2), s*0.5);
+    }
+  }
+  // 아래쪽은 투명하게 사라지게
+  g.globalCompositeOperation = 'destination-in';
+  const fade = g.createLinearGradient(0, Hp - 40, 0, Hp);
+  fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = fade; g.fillRect(0, 0, Wp, Hp);
+  g.globalCompositeOperation = 'source-over';
+
+  return {cv, Wp, Hp, Hy, beacons};
+}
+
+function drawCity(t, cx, hy, f, P, tod){
+  const ppd = f*D2R;
+  const X = b => cx + wrap180(b + S.heading)*ppd;
+  // 별과 달
   if (P.star){
+    if (!drawCity.stars){ const r = mulberry(42); drawCity.stars = Array.from({length:140}, () => ({b:r()*360, e:r(), s:r()})); }
     ctx.fillStyle = '#ffffff';
-    for (const s of scene.stars){
+    for (const s of drawCity.stars){
       const x = X(s.b); if (x < -2 || x > W+2) continue;
       const y = hy*0.92*(1 - s.e);
       ctx.globalAlpha = P.star*(0.25 + 0.75*s.s)*Math.min(1, (hy - y)/80);
@@ -451,89 +697,46 @@ function drawCity(t, cx, hy, f, P, tod){
     }
     ctx.globalAlpha = 1;
   }
-  // 해 (낮: 높이, 노을: 지평선 가까이)
-  if (tod !== 'night'){
+  if (tod === 'night'){
+    const mx = X(-35), my = hy*0.28;
+    const gl = ctx.createRadialGradient(mx, my, 0, mx, my, 60);
+    gl.addColorStop(0, 'rgba(240,238,220,.35)'); gl.addColorStop(1, 'rgba(240,238,220,0)');
+    ctx.fillStyle = gl; ctx.fillRect(mx-60, my-60, 120, 120);
+    ctx.fillStyle = '#f1efe2'; ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(10,20,48,.9)'; ctx.beginPath(); ctx.arc(mx+4, my-2, 7, 0, 7); ctx.fill();   // 초승달
+  } else {
     const sx = X(tod === 'day' ? 55 : 38), sy = tod === 'day' ? hy*0.3 : hy - 14, r = tod === 'day' ? 90 : 150;
-    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
-    g.addColorStop(0, tod === 'day' ? 'rgba(255,255,240,.9)' : 'rgba(255,200,120,.95)');
-    g.addColorStop(0.12, tod === 'day' ? 'rgba(255,255,230,.5)' : 'rgba(255,160,90,.55)');
-    g.addColorStop(1, 'rgba(255,200,150,0)');
-    ctx.fillStyle = g; ctx.fillRect(sx-r, sy-r, r*2, r*2);
+    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+    gr.addColorStop(0, tod === 'day' ? 'rgba(255,255,240,.9)' : 'rgba(255,200,120,.95)');
+    gr.addColorStop(0.12, tod === 'day' ? 'rgba(255,255,230,.5)' : 'rgba(255,160,90,.55)');
+    gr.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = gr; ctx.fillRect(sx-r, sy-r, r*2, r*2);
   }
+  const id = currentCity();
+  if (!id) return;
   // 밤 도시 불빛이 하늘에 번지는 빛
   if (P.glow){
-    const x0 = X(0), hw = (C.span+20)*ppd;
-    const g = ctx.createLinearGradient(0, hy-90, 0, hy);
-    g.addColorStop(0, 'rgba(255,160,90,0)'); g.addColorStop(1, `rgba(255,160,90,${0.22*P.glow})`);
-    ctx.fillStyle = g; ctx.fillRect(Math.max(0, x0-hw), hy-90, Math.min(W, x0+hw) - Math.max(0, x0-hw), 90);
+    const span = CITIES[id].span + 20, x0 = X(0);
+    const gr = ctx.createLinearGradient(0, hy-110, 0, hy);
+    gr.addColorStop(0, 'rgba(255,150,80,0)'); gr.addColorStop(1, `rgba(255,150,80,${0.25*P.glow})`);
+    ctx.fillStyle = gr; ctx.fillRect(Math.max(0, x0 - span*ppd), hy-110, Math.min(W, x0 + span*ppd) - Math.max(0, x0 - span*ppd), 110);
   }
-  // 산
-  for (const m of C.mount || []){
-    const x = X(m[0]), hw = m[1]*ppd, hh = m[2]*u;
-    if (x + hw < 0 || x - hw > W) continue;
-    ctx.fillStyle = P.mount; ctx.beginPath(); ctx.moveTo(x-hw, hy);
-    if (m[3] === 'fuji'){
-      ctx.quadraticCurveTo(x-hw*0.45, hy-hh*0.3, x-hw*0.11, hy-hh); ctx.lineTo(x+hw*0.11, hy-hh);
-      ctx.quadraticCurveTo(x+hw*0.45, hy-hh*0.3, x+hw, hy); ctx.fill();
-      ctx.fillStyle = P.snow; ctx.beginPath();
-      ctx.moveTo(x-hw*0.11, hy-hh); ctx.lineTo(x+hw*0.11, hy-hh); ctx.lineTo(x+hw*0.21, hy-hh*0.72);
-      ctx.lineTo(x+hw*0.1, hy-hh*0.78); ctx.lineTo(x, hy-hh*0.7); ctx.lineTo(x-hw*0.09, hy-hh*0.8); ctx.lineTo(x-hw*0.21, hy-hh*0.72);
-      ctx.fill();
-    } else {
-      ctx.quadraticCurveTo(x-hw*0.35, hy-hh*1.25, x, hy-hh); ctx.quadraticCurveTo(x+hw*0.4, hy-hh*0.85, x+hw, hy); ctx.fill();
-    }
-  }
-  const layer = (L, col, base) => {
-    ctx.fillStyle = col;
-    for (const b of L){ const x = X(b.b), w = b.w*ppd; if (x + w < 0 || x > W) continue; const h = b.h*u; ctx.fillRect(x, hy+base-h, w+0.6, h); }
-    if (!P.win) return;
-    ctx.fillStyle = `rgba(255,214,140,${0.85*P.win})`;
-    for (const b of L){ const x = X(b.b), w = b.w*ppd; if (x + w < 0 || x > W) continue; const h = b.h*u;
-      for (const p of b.win) ctx.fillRect(x + p[0]*w, hy + base - p[1]*h, 1.3, 1.3); }
-  };
-  layer(scene.layers[0], P.back, 0);
-  // 랜드마크
-  for (const [k, b] of C.marks){
-    const x = X(b); if (x < -200 || x > W+200) continue;
-    const col = (LIT[k] && LIT[k][tod]) || P.land;
-    if (k === 'eye'){
-      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.5, 3*u);
-      ctx.beginPath(); ctx.arc(x, hy - 52*u, 46*u, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x-14*u, hy); ctx.lineTo(x, hy-52*u); ctx.lineTo(x+14*u, hy); ctx.stroke();
-      continue;
-    }
-    ctx.fillStyle = col;
-    for (const poly of SHAPES[k]){
-      ctx.beginPath(); poly.forEach(([px,py], i) => i ? ctx.lineTo(x+px*u, hy-py*u) : ctx.moveTo(x+px*u, hy-py*u)); ctx.closePath(); ctx.fill();
-    }
-    // 높은 건물 꼭대기 항공 장애등 (밤에 깜빡임)
-    if (P.glow && ((t/1000 + b*0.13) % 1.6) < 0.8){
-      const ty = hy - SHAPE_TOP[k]*u - 1;
-      ctx.fillStyle = 'rgba(255,60,50,.35)'; ctx.beginPath(); ctx.arc(x, ty, 4, 0, 7); ctx.fill();
-      ctx.fillStyle = '#ff4a3d'; ctx.beginPath(); ctx.arc(x, ty, 1.6, 0, 7); ctx.fill();
-    }
-  }
-  layer(scene.layers[1], P.front, 2);
-  // 지평선 아래 도시 불빛
-  if (P.glow){
-    for (const l of scene.lights){
-      const x = X(l.b); if (x < -4 || x > W+4) continue;
-      const y = hy + 3 + l.d*70*(1 - alt*0.6);
-      ctx.fillStyle = `rgba(255,${190 + (l.s*50|0)},${110 + (l.s*80|0)},${P.glow*(0.35 + 0.6*l.s)})`;
-      const r = 0.6 + l.s*0.9 + l.d*1.2; ctx.fillRect(x - r/2, y - r/2, r, r);
-    }
-  }
-  // 고도가 높으면 지평선 쪽이 뿌옇게
-  if (alt){
-    const g = ctx.createLinearGradient(0, hy-140, 0, hy+60);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.7, P.sky[2]); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = alt*0.7; ctx.fillStyle = g; ctx.fillRect(0, hy-140, W, 200); ctx.globalAlpha = 1;
+  const pn = getPano(id, tod, f);
+  const left = X(0) - PANO_SPAN*ppd;
+  if (left < W && left + pn.Wp > 0) ctx.drawImage(pn.cv, left, hy - pn.Hy, pn.Wp, pn.Hp);
+  // 높은 건물 꼭대기 항공 장애등 (깜빡임)
+  for (const bc of pn.beacons){
+    if (((t/1000 + bc.b*0.13) % 1.6 + 1.6) % 1.6 > 0.8) continue;
+    const x = X(bc.b), y = hy - pn.Hy + bc.y;
+    if (x < -5 || x > W+5) continue;
+    ctx.fillStyle = 'rgba(255,60,50,.35)'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ff4a3d'; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 7); ctx.fill();
   }
 }
 
 const parts = [];
 function spawn(p, anywhere){
-  p.g = Math.random() < 0.55;                       // 땅 위 점 / 구름
+  p.g = Math.random() < 0.55;                       // 땅 위 점(순항 땐 구름 바다) / 구름
   p.x = (Math.random()*2-1) * 260;
   p.y = p.g ? -60 : (Math.random()*40 - 16);
   p.z = anywhere ? 20 + Math.random()*420 : 440;
@@ -545,16 +748,17 @@ let chaseLast = 0;
 
 function drawChase(t){
   const dt = Math.min(0.1, (t - (chaseLast||t))/1000); chaseLast = t;
-  const tod = timeOfDay(), P = PAL[tod];
+  const tod = timeOfDay(), P = PAL[tod], cruise = opt.phase === 'cruise';
   const roll = (S.roll - S.zeroRoll)*D2R, pitch = (S.pitch - S.zeroPitch)*1.5*D2R;
   const cx = W/2, hy = H*0.44, f = Math.min(W*0.95, H*0.6);
 
-  // 하늘 / 땅 (수평선은 고정)
+  // 하늘 / 땅 (수평선은 고정). 순항 중엔 땅 대신 구름 바다
   let g = ctx.createLinearGradient(0,0,0,hy);
   g.addColorStop(0,P.sky[0]); g.addColorStop(0.6,P.sky[1]); g.addColorStop(1,P.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,hy+1);
   g = ctx.createLinearGradient(0,hy,0,H);
-  g.addColorStop(0,P.grd[0]); g.addColorStop(0.35,P.grd[1]); g.addColorStop(1,P.grd[2]);
+  if (cruise){ g.addColorStop(0, mix(P.deck[0], P.haze, 0.3)); g.addColorStop(0.25, P.deck[0]); g.addColorStop(1, P.deck[1]); }
+  else { g.addColorStop(0,P.grd[0]); g.addColorStop(0.35,P.grd[1]); g.addColorStop(1,P.grd[2]); }
   ctx.fillStyle = g; ctx.fillRect(0,hy,W,H-hy);
   drawCity(t, cx, hy, f, P, tod);
 
@@ -566,14 +770,23 @@ function drawChase(t){
     if (p.z < 4 || Math.abs(p.x) > p.z*1.6 + 60) spawn(p, false);
   }
   const proj = (x,y,z) => [cx + f*x/z, hy - f*y/z];
+  const deckRGB = hex(P.deck[0]).join(',');
   const drawPart = p => {
     const [sx, sy] = proj(p.x, p.y - CAM.y, p.z);
     const fade = Math.min(1, (440 - p.z)/120) * Math.min(1, p.z/30);
-    const r = f*p.s/p.z;
-    if (p.g){ ctx.fillStyle = P.gdot.replace('A', (P.ga*fade).toFixed(3)); ctx.beginPath(); ctx.arc(sx,sy,Math.max(1,r),0,7); ctx.fill(); }
-    else {
+    if (p.g){
+      if (cruise){                                  // 구름 바다의 뭉게구름
+        const r = f*5/p.z;
+        ctx.fillStyle = `rgba(${deckRGB},${(0.55*fade).toFixed(3)})`;
+        ctx.beginPath(); ctx.ellipse(sx, sy, r*1.6, r*0.6, 0, 0, 7); ctx.fill();
+      } else {
+        const r = f*p.s/p.z;
+        ctx.fillStyle = P.gdot.replace('A', (P.ga*fade).toFixed(3)); ctx.beginPath(); ctx.arc(sx,sy,Math.max(1,r),0,7); ctx.fill();
+      }
+    } else {
       // 가까운 구름은 흐리게 (도시와 비행기를 가리지 않게), 이착륙 땐 구름이 적음
-      const cf = fade * Math.min(1, Math.max(0, (p.z - 15)/90)) * (opt.speed < 150 ? 0.5 : 1);
+      const r = f*p.s/p.z;
+      const cf = fade * Math.min(1, Math.max(0, (p.z - 15)/90)) * (cruise ? 1 : 0.5);
       ctx.fillStyle = P.cloud.replace('A', (P.ca*cf).toFixed(3));
       ctx.beginPath(); ctx.arc(sx,sy,r,0,7); ctx.arc(sx+r*0.9,sy+r*0.25,r*0.7,0,7); ctx.arc(sx-r*0.9,sy+r*0.3,r*0.6,0,7); ctx.fill();
     }
@@ -726,7 +939,8 @@ function updateHud(t){
   $('tiltNum').style.color = a < 5 ? 'var(--ok)' : a < 20 ? 'var(--warn)' : 'var(--bad)';
   $('tiltDir').textContent = a < 3 ? '수평' : (roll > 0 ? '오른쪽' : '왼쪽') + '으로 기울어짐';
   $('tiltLvl').textContent = a < 3 ? '안정적으로 날고 있어요' : a < 10 ? '살짝 기울었어요' : a < 20 ? '보통 정도로 기울었어요' : '크게 기울었어요. 화면 속 비행기를 보세요';
-  $('cityTag').textContent = CITIES[opt.city].name + ' · ' + {day:'낮', dusk:'노을', night:'밤'}[timeOfDay()];
+  const cid = currentCity(), todName = {day:'낮', dusk:'노을', night:'밤'}[timeOfDay()];
+  $('cityTag').textContent = (cid ? (opt.phase === 'landing' ? '도착 · ' : '출발 · ') + CITIES[cid].name : '순항 · 구름 위') + ' · ' + todName;
 
   const tb = S.turb;
   const tt = tb < 0.4 ? ['난기류 없음','var(--muted)'] : tb < 1.2 ? ['난기류 약함','var(--warn)'] : tb < 2.5 ? ['난기류 보통','var(--warn)'] : ['난기류 강함','var(--bad)'];
@@ -813,14 +1027,40 @@ breathBtn.addEventListener('click', () => {
   breathBtn.setAttribute('aria-pressed', String(opt.breath));
   $('breathText').hidden = !opt.breath;
 });
-$('btnTips').addEventListener('click', () => $('tips').hidden = false);
+$('btnTips').addEventListener('click', () => { $('settings').hidden = true; $('tips').hidden = false; });
 $('tipsClose').addEventListener('click', () => $('tips').hidden = true);
 $('btnSet').addEventListener('click', () => $('settings').hidden = false);
 $('setClose').addEventListener('click', () => $('settings').hidden = true);
 for (const id of ['tips','settings']) $(id).addEventListener('click', e => { if (e.target.id === id) $(id).hidden = true; });
-$('city').addEventListener('change', e => { opt.city = e.target.value; store.set('city', opt.city); S.heading = 0; if (!running) draw(0); });
+// 출발/도착 도시 고르기 (시작 화면과 설정에 같은 목록)
+for (const id of ['dep','arr','setDep','setArr']){
+  const sel = $(id);
+  for (const k in CITIES){ const o = document.createElement('option'); o.value = k; o.textContent = CITIES[k].name; sel.appendChild(o); }
+}
+const syncCities = () => { $('dep').value = $('setDep').value = opt.dep; $('arr').value = $('setArr').value = opt.arr; };
+syncCities();
+const pickCity = (which, v) => {
+  opt[which] = v; store.set(which, v); syncCities();
+  // 시작 화면에선 고른 도시를 바로 미리 보여줌
+  if (!running){ opt.phase = which === 'arr' ? 'landing' : 'takeoff'; syncPhase(); }
+  S.heading = 0; if (!running) draw(0);
+};
+$('dep').addEventListener('change', e => pickCity('dep', e.target.value));
+$('arr').addEventListener('change', e => pickCity('arr', e.target.value));
+$('setDep').addEventListener('change', e => pickCity('dep', e.target.value));
+$('setArr').addEventListener('change', e => pickCity('arr', e.target.value));
+
+// 비행 단계: 이륙(출발 도시) / 순항(구름 위) / 착륙(도착 도시)
+function syncPhase(){
+  opt.speed = PHASE_SPEED[opt.phase];
+  for (const b of document.querySelectorAll('#phaseSeg button')) b.setAttribute('aria-pressed', String(b.dataset.p === opt.phase));
+}
+syncPhase();
+for (const b of document.querySelectorAll('#phaseSeg button')){
+  b.addEventListener('click', () => { opt.phase = b.dataset.p; syncPhase(); S.heading = 0; lastHud = 0; });
+}
+addEventListener('resize', () => { if (!running) draw(0); });
 $('tod').addEventListener('change', e => { opt.tod = e.target.value; store.set('tod', opt.tod); if (!running) draw(0); });
-$('phase').addEventListener('change', e => { opt.speed = +e.target.value; store.set('speed', opt.speed); });
 $('optVibe').addEventListener('change', e => { opt.vibe = e.target.checked; store.set('vibe', opt.vibe); });
 $('optBanner').addEventListener('change', e => { opt.banner = e.target.checked; store.set('banner', opt.banner); });
 
