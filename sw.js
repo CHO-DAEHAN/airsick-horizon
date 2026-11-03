@@ -1,5 +1,5 @@
 // 비행기 모드에서도 열리도록 앱 파일을 캐시에 저장
-const CACHE = 'horizon-v4';
+const CACHE = 'horizon-v5';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', e => {
